@@ -203,7 +203,8 @@
     background:linear-gradient(160deg, #C0392B, #922B21);
   }
   .mic-btn.recording svg{animation:none;}
-  .mic-btn.locked{filter:grayscale(1); opacity:.5; box-shadow:none;}
+  .mic-btn.locked{filter:grayscale(1); opacity:.55; box-shadow:none; pointer-events:none;}
+  .mic-btn.locked::after{content:'🔒'; position:absolute; bottom:-4px; right:-4px; font-size:16px; line-height:1; z-index:3; filter:none;}
   .mic-btn.locked .ring{display:none;}
 
   /* ===== محتوى التبويبات ===== */
@@ -243,9 +244,15 @@
     padding:70px 34px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.8;
   }
   .breadcrumb{
-    display:flex; align-items:center; gap:8px; padding:4px 20px 0;
+    display:flex; align-items:center; gap:8px; padding:6px 20px 0;
     font-size:13px; color:var(--emerald-dark); font-weight:700;
   }
+  .breadcrumb span{
+    display:inline-flex; align-items:center; gap:8px; min-height:50px; padding:12px 20px;
+    font-size:17px; font-weight:900; border-radius:14px; background:#e3f1ea; color:var(--emerald-dark);
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  .breadcrumb span:active{background:#cfe7dc;}
   .circle-grid{
     display:grid; grid-template-columns:repeat(3,1fr); gap:16px 10px;
     padding:16px 20px 24px;
@@ -634,6 +641,28 @@
   .pw-wrap{position:relative;}
   .pw-wrap input{padding-left:44px;}
   .pw-eye{position:absolute; left:6px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:18px; padding:6px 8px; line-height:1;}
+
+  /* خيار ألف/ليرة لخانات المبالغ */
+  .money-tools{display:flex; align-items:center; gap:6px; margin:4px 0 8px; font-size:11.5px;}
+  .mt-btn{padding:3px 12px; border-radius:999px; border:1px solid #bbb; background:#fff; color:#444; cursor:pointer; user-select:none;}
+  .mt-btn.on{background:#1f6f50; border-color:#1f6f50; color:#fff; font-weight:700;}
+  .mt-prev{margin-inline-start:auto; color:#1f6f50; direction:ltr; font-size:12.5px;}
+
+
+  /* ===== سلوك الكيبورد والنوافذ (بدون أرقام ثابتة: كله حسب الجهاز) ===== */
+  .modal-overlay{overscroll-behavior:contain;}
+  .modal-overlay .modal-sheet{overscroll-behavior:contain; padding-top:0;}
+  .modal-overlay .modal-sheet > :first-child:not(.modal-topbar){margin-top:24px;}
+  .modal-overlay .modal-sheet .modal-topbar{position:sticky; top:0; z-index:5; background:#fff; padding:22px 0 8px; margin-bottom:6px;}
+  .modal-overlay.kb-dock{align-items:flex-start; transition:none;}
+  .modal-overlay.kb-dock .modal-sheet{
+    max-height:calc(var(--kvis, 50vh) - 10px); margin-top:var(--kofs, 0px);
+    border-radius:0 0 24px 24px; padding-bottom:16px;
+  }
+  body.modal-open{overflow:hidden;}
+  body:not(.authed) .app{visibility:hidden;}
+  .preset-hint{display:flex; gap:10px; align-items:flex-start; background:#eef7f2; border:1px solid #bfe0d0; color:#1b5e46; border-radius:14px; padding:10px 14px; margin:4px 20px 14px; font-size:12.5px; line-height:1.7; font-weight:700;}
+  .preset-hint b{cursor:pointer; padding:0 4px; color:#1b5e46;}
 </style>
 </head>
 <body>
@@ -716,17 +745,6 @@
         <span id="homeWasteSummary">تسجيل سريع للخسائر</span>
       </div>
 
-      <div class="card wide" onclick="goTo('chat')">
-        <div class="icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.5-.7L3 20l1-4.8a8.4 8.4 0 0 1-.9-3.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4Z"></path>
-          </svg>
-        </div>
-        <div class="text">
-          <h3>التحدث مع المدير المالي</h3>
-          <span>اسأله عن أي شيء بمحلك بالعامية</span>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -746,6 +764,7 @@
 
     <!-- قوائم الأصناف (تظهر بعد بدء العمل) -->
     <div id="saleContent" style="display:none;">
+      <div class="preset-hint" id="presetHintSale" style="display:none;"><span>💡 القوائم جاهزة لتساعدك: عدّل الأسماء أو احذف اللي ما بتبيعو، وابدأ أضف مواد محلك للمخزون، أو اضغط على أي مادة بالقوائم الجاهزة وعبّي سعرها وكميتها لتصير جاهزة للبيع السريع.</span><b onclick="hidePresetHint()">✕</b></div>
 
       <div class="breadcrumb" id="breadcrumb" style="display:none;">
         <span onclick="showCategories()">‹ رجوع للأقسام</span>
@@ -766,7 +785,8 @@
           <input lang="en" type="number" step="any" id="qaSaleWeight" placeholder="الرقم يلي بالميزان (لو فلش)">
           <select id="qaSaleWeightUnit"></select>
         </div>
-        <div class="form-hint">عبّي وحدة بس حسب نوع المادة، واترك التانية فاضية - ولو فلش اختار وحدة الرقم يلي كتبته (كيلو/غرام/وقية/لتر/مل)</div>
+        <div class="qa-row" style="margin-top:6px;"><input lang="en" type="number" step="any" id="qaSaleAmount" placeholder="أو المبلغ (للفلش) مثال: 10000"></div>
+        <div class="form-hint">عبّي وحدة بس حسب نوع المادة، واترك التانية فاضية - ولو فلش اختار وحدة الرقم يلي كتبته (كيلو/غرام/وقية/لتر/مل) - أو اكتب المبلغ بدل الوزن</div>
         <button onclick="quickAddSale()" style="width:100%; padding:11px; margin-top:2px;">إضافة للفاتورة</button>
       </div>
 
@@ -808,8 +828,10 @@
   <div class="screen" data-screen="stock">
     <div class="screen-header">
       <h2>المخزون</h2>
-      <p>سجّل بالصوت (زر الزاوية) أو يدوياً من القوائم تحت - نفس الأسعار هون بتظهر بالمبيع</p>
+      <p>سجّل يدوياً من القوائم تحت - نفس الأسعار هون بتظهر بالمبيع</p>
     </div>
+
+    <div class="preset-hint" id="presetHintStock" style="display:none;"><span>💡 القوائم جاهزة لتساعدك: عدّل الأسماء أو احذف اللي ما بتبيعو، وابدأ أضف مواد محلك للمخزون، أو اضغط على أي مادة بالقوائم الجاهزة وعبّي سعرها وكميتها لتصير جاهزة للبيع السريع.</span><b onclick="hidePresetHint()">✕</b></div>
 
     <!-- التنبيهات: صلاحية قاربت تخلص + كميات منخفضة -->
     <div class="reminders-box" id="remindersBox">
@@ -1110,8 +1132,8 @@
     <!-- انتهت التجربة / بانتظار التفعيل -->
     <div id="authPendingView" style="display:none; text-align:center;">
       <div style="font-size:38px; margin-bottom:8px;">⏳</div>
-      <h3 style="margin-bottom:8px;">انتهت فترة التجربة المجانية</h3>
-      <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; line-height:1.8;">لمتابعة استخدام التطبيق اشترك بالطريقة المناسبة لك، وبنفعّل حسابك بعد الدفع. بياناتك محفوظة وما رح تضيع.</p>
+      <h3 id="pendingTitle" style="margin-bottom:8px;">انتهت فترة التجربة المجانية</h3>
+      <p id="pendingText" style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; line-height:1.8;">لمتابعة استخدام التطبيق اشترك بالطريقة المناسبة لك، وبنفعّل حسابك بعد الدفع. بياناتك محفوظة وما رح تضيع.</p>
       <div id="expiredPricing" style="text-align:right; margin-bottom:12px;"></div>
       <button class="confirm-btn" onclick="openSupportChat()">💬 راسلنا</button>
       <button class="confirm-btn" style="margin-top:8px; background:#fff; color:var(--emerald-dark); border:1.5px solid var(--emerald);" onclick="authRecheck()">تحديث الحالة</button>
@@ -1196,7 +1218,9 @@
     </div>
     <div class="form-hint">وحدة المبيع ممكن تكون نفس وحدة الإدخال (لو تركتها فاضية بتعتبر نفسها)</div>
 
-    <div class="form-field"><label>سعر شراء الكمية كاملة</label><input lang="en" type="number" step="any" id="u_total" oninput="updateUnifiedForm()" placeholder="مثال: 100000"></div>
+    <div class="form-field"><label>سعر شراء الكمية كاملة</label><input lang="en" type="number" step="any" id="u_total" oninput="onCostTyped('total')" placeholder="مثال: 100000"></div>
+    <div class="form-field"><label id="u_unitcostLabel">أو سعر شراء الوحدة الواحدة</label><input lang="en" type="number" step="any" id="u_unitcost" oninput="onCostTyped('unit')" placeholder="مثال: 4200"></div>
+    <div class="form-hint">اكتب وحدة من الخانتين (سعر الكمية كاملة أو سعر الوحدة)، والتانية بتنحسب لحالها</div>
 
     <div id="u_rowMeasure" class="form-row" style="display:none;">
       <div class="form-field"><label id="u_measureLabel">الوزن</label><input lang="en" type="number" step="any" id="u_measure" oninput="updateUnifiedForm()" placeholder="مثال: 2"></div>
@@ -1224,6 +1248,25 @@
   </div>
 </div>
 
+<!-- نافذة النواقص: بتطلع لما يضغط حفظ المادة وفيه معلومات ناقصة -->
+<div class="modal-overlay" id="missingOverlay">
+  <div class="modal-sheet">
+    <div class="modal-topbar">
+      <h3>ناقصك شغلات قبل الحفظ</h3>
+      <button class="modal-close" onclick="closeMissing()">✕</button>
+    </div>
+    <div class="form-hint">اضغط على أي بند لينقلك للخانة</div>
+    <div id="missingList" style="margin-top:8px;"></div>
+    <div id="missingCatBox" style="display:none; margin-top:6px;">
+      <div class="form-hint" style="font-weight:700;">اختر القسم: من الأقسام الموجودة أو قسم جديد</div>
+      <div id="missingCatChips" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;"></div>
+      <div class="form-field"><input type="text" id="missingNewCat" placeholder="🆕 قسم جديد: اكتب اسمو هون"></div>
+      <button class="confirm-btn" onclick="applyMissingNewCat()">استخدم القسم الجديد</button>
+    </div>
+    <button class="confirm-btn" style="margin-top:10px;" onclick="closeMissing()">رجوع للفورم</button>
+  </div>
+</div>
+
 <!-- نافذة إدخال وزن الميزان الإلكتروني (للمواد الفلش بالمبيع) -->
 <div class="modal-overlay" id="weightOverlay">
   <div class="modal-sheet">
@@ -1233,9 +1276,10 @@
     </div>
     <p id="weightItemName">-</p>
     <div class="form-row">
-      <div class="form-field"><label id="weightInputLabel">الكمية يلي طلعت بالميزان</label><input lang="en" type="number" step="any" id="weightInput" oninput="updateWeightPreview()" placeholder="مثال: 1.500"></div>
+      <div class="form-field"><label id="weightInputLabel">الكمية يلي طلعت بالميزان</label><input lang="en" type="number" step="any" id="weightInput" oninput="onWeightTyped()" placeholder="مثال: 1.500"></div>
       <div class="form-field"><label>الوحدة</label><select id="weightUnitSelect" onchange="updateWeightPreview()"></select></div>
     </div>
+    <div class="form-field" id="weightAmountBox" style="display:none;"><label>أو اكتب المبلغ (ل.س) والوزن بيطلع لحاله</label><input lang="en" type="number" step="any" id="weightAmount" oninput="onWeightAmountInput()" placeholder="مثال: 10000"></div>
     <div class="form-hint" id="weightPreview"></div>
     <div id="weightPieceBox" style="display:none;">
       <div class="form-row">
@@ -1380,7 +1424,7 @@
 </div>
 
 <div class="voice-dock">
-  <button class="mic-btn" id="micBtn">
+  <button class="mic-btn locked" id="micBtn">
     <span class="ring"></span>
     <span class="ring delay"></span>
     <svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5.5A3.5 3.5 0 0 0 12 15Zm5-3.5a5 5 0 0 1-10 0H5.5a6.5 6.5 0 0 0 6 6.47V21h1v-3.03a6.5 6.5 0 0 0 6-6.47H17Z"/></svg>
@@ -1414,7 +1458,8 @@
 <div class="toast" id="toast"></div>
 
 <!-- ===== ربط Supabase (المستودع الحقيقي) - خطوة 1: تحميل المكتبة والاتصال بس، بلا أي تخزين فعلي لهلق ===== -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script>if(typeof window.supabase==='undefined'){ document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>'); }</script>
 <script>
   const SUPABASE_URL = 'https://mzewsaaprmithnkgkovc.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_f9v3EJVeHfE_kxeR0zniQg_z0W7e9L5';
@@ -1439,6 +1484,7 @@
       showConnResult('✅ متصل بقاعدة البيانات (Supabase)');
     }catch(e){
       console.error('❌ فشل الاتصال بـ Supabase:', e.message);
+      if(!navigator.onLine) return;
       showConnResult('❌ فشل الاتصال بقاعدة البيانات: ' + e.message);
     }
   })();
@@ -1454,6 +1500,98 @@
     CURRENT_UID = uid;
     __readyCallbacks.splice(0).forEach(f => { try{ f(); }catch(e){ console.error(e); } });
   }
+
+  // ===== طبقة العمل بدون إنترنت: نسخة محفوظة على الجهاز + تأشير "ما انرفع" + رفع تلقائي =====
+  const OFF = window.OFF = (function(){
+    const MAX_AGE = 7*24*3600*1000;      // أطول مدة بدون ما يتأكد التطبيق من حسابك بالإنترنت (7 أيام)
+    const P = 'off:';
+    function k(mod){ return P + CURRENT_UID + ':' + mod; }
+    function read(mod){ try{ return JSON.parse(localStorage.getItem(k(mod))); }catch(e){ return null; } }
+    function write(mod, str, dirty){ try{ localStorage.setItem(k(mod), JSON.stringify({s:str, dirty:!!dirty, t:Date.now()})); }catch(e){} }
+    function anyDirty(){
+      try{
+        const pre = P + CURRENT_UID + ':';
+        for(let i = 0; i < localStorage.length; i++){
+          const key = localStorage.key(i);
+          if(key && key.indexOf(pre) === 0){ const v = JSON.parse(localStorage.getItem(key)); if(v && v.dirty) return true; }
+        }
+      }catch(e){}
+      return false;
+    }
+    function setIdentity(o){ try{ localStorage.setItem(P + 'identity', JSON.stringify(Object.assign({}, o, {t:Date.now()}))); }catch(e){} }
+    function getIdentity(){ try{ return JSON.parse(localStorage.getItem(P + 'identity')); }catch(e){ return null; } }
+    function fresh(id){ return !!(id && id.t && (Date.now() - id.t) < MAX_AGE); }
+    function hasMirror(uid){ try{ return localStorage.getItem(P + uid + ':inventory') !== null; }catch(e){ return false; } }
+    function wipe(){ try{ Object.keys(localStorage).filter(x => x.indexOf(P) === 0 || x.indexOf('sb-') === 0).forEach(x => localStorage.removeItem(x)); }catch(e){} }
+    function isNetErr(e){
+      if(!navigator.onLine) return true;
+      return /failed to fetch|networkerror|load failed|network request failed|fetch|timeout|offline/i.test(String(e && (e.message || e)));
+    }
+    async function probeOffline(){
+      try{
+        await Promise.race([
+          fetch(SUPABASE_URL + '/auth/v1/health', {mode:'no-cors', cache:'no-store'}),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+        ]);
+        return false;
+      }catch(e){ return true; }
+    }
+    // نسخة محلية لكل جزء من البيانات. o = { ser(), restore(str), isDirty(str), isCloud() }
+    function mirror(mod, o){
+      let localReady = false, mSnap = null, mDirty = null, offDirty = false, fromMirror = false;
+      function tick(){
+        if(!localReady || !CURRENT_UID) return;
+        let snap; try{ snap = o.ser(); }catch(e){ return; }
+        let dirty;
+        if(o.isCloud()) dirty = o.isDirty(snap);
+        else { if(snap !== mSnap) offDirty = true; dirty = offDirty; }
+        if(snap === mSnap && dirty === mDirty) return;
+        write(mod, snap, dirty); mSnap = snap; mDirty = dirty;
+      }
+      return {
+        tick: tick,
+        wasFromMirror: function(){ return fromMirror; },
+        // فشل التحميل من السحابة: نرجع آخر نسخة محفوظة على الجهاز
+        restoreFallback: function(){
+          if(localReady) return true;
+          const m = read(mod);
+          if(!m || typeof m.s !== 'string') return false;
+          try{ o.restore(m.s); }catch(e){ return false; }
+          mSnap = m.s; mDirty = !!m.dirty; offDirty = !!m.dirty; fromMirror = true; localReady = true;
+          return true;
+        },
+        // نجح التحميل من السحابة: إذا في تعديلات ما انرفعت (انعملت بدون نت) بتغلب على نسخة السحابة وبتنرفع
+        overlay: function(){
+          const m = read(mod);
+          if(m && m.dirty && typeof m.s === 'string'){
+            let cur = null; try{ cur = o.ser(); }catch(e){}
+            if(m.s !== cur){ try{ o.restore(m.s); }catch(e){ console.error('تعذر استرجاع تعديلات الجهاز', e); } }
+          }
+          localReady = true; offDirty = false; mSnap = null; mDirty = null;
+        }
+      };
+    }
+    return { read, write, anyDirty, setIdentity, getIdentity, fresh, hasMirror, wipe, isNetErr, probeOffline, mirror };
+  })();
+
+  // شريط صغير بيبيّن حالة الإنترنت والتعديلات اللي لسا ما انرفعت
+  (function(){
+    const b = document.createElement('div');
+    b.id = 'netBanner';
+    b.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:10000; display:none; padding:3px 12px; border-radius:0 0 10px 10px; font-size:11px; font-weight:800; color:#fff; background:#7a5c00; pointer-events:none; max-width:92vw; text-align:center;';
+    document.body.appendChild(b);
+    let prevPend = false;
+    function upd(){
+      if(!CURRENT_UID){ b.style.display = 'none'; return; }
+      const off = !navigator.onLine, pend = OFF.anyDirty();
+      if(off){ b.textContent = pend ? '📴 بدون إنترنت — تغييراتك محفوظة بالجهاز وبترفع لحالها' : '📴 بدون إنترنت — التطبيق شغال'; b.style.display = 'block'; }
+      else if(pend){ b.textContent = '⏳ عم نرفع تغييراتك...'; b.style.display = 'block'; }
+      else { b.style.display = 'none'; if(prevPend){ try{ showToast('☁️ تم رفع كل شغلك'); }catch(e){} } }
+      prevPend = pend;
+    }
+    setInterval(upd, 1500);
+    window.addEventListener('online', upd); window.addEventListener('offline', upd);
+  })();
   const toast = document.getElementById('toast');
   // عرض المبالغ: منقرّب للرقم الصحيح (الليرة ما بيها فواصل). الأسعار الصغيرة (مثل سعر الغرام) بتضل بكسورها.
   // القيمة المحفوظة بتضل دقيقة، فرأس المال ما بيتأثر، هاد للعرض بس.
@@ -1502,11 +1640,12 @@
   }
 
   // ===== صلاحيات الصوت والشات (بتجي من القاعدة بعد تسجيل الدخول) =====
-  let FEATURES = { voice:true, chat:true };
-  const VOICE_LOCK_TEXT = '🔒 الصوت متوقف - تواصل معنا لتفعيله';
+  let FEATURES = { voice:false, chat:false };   // الصوت متوقف حالياً (VOICE_PAUSED): الزر مقفول وما بيشتغل
+  const VOICE_LOCK_TEXT = '🔒 الصوت قريباً';
   function applyFeatures(){
     const mic = document.getElementById('micBtn');
     if(mic) mic.classList.toggle('locked', !FEATURES.voice);
+    if(!FEATURES.voice && typeof window.__stopMic === 'function') window.__stopMic();
     const bar = document.querySelector('.chat-input-bar');
     const sug = document.getElementById('chatSuggestions');
     const note = document.getElementById('chatLockedNote');
@@ -1541,6 +1680,8 @@
     const cfg = voiceLabels[name];
     dock.style.display = cfg.show ? 'flex' : 'none';
     voiceHint.textContent = FEATURES.voice ? cfg.text : VOICE_LOCK_TEXT;
+    try{ const a = document.activeElement; if(a && a !== document.body && typeof a.blur === 'function') a.blur(); }catch(e){}   // الكيبورد بيسكّر مع تغيير الشاشة
+    if(name === 'sale' && typeof showCategories === 'function') showCategories();   // المبيع دايماً بيفتح من أول: قائمة الأقسام
     if(name === 'stock' && typeof showStockCategories === 'function') showStockCategories();
     if(name === 'debts' && typeof showDebtsHome === 'function') showDebtsHome();
     if(name === 'waste' && typeof setWasteSubView === 'function') setWasteSubView(currentWasteSub || 'damaged');
@@ -1556,10 +1697,17 @@
   const voiceHint = document.getElementById('voiceHint');
   let pressTimer;
 
-  micBtn.addEventListener('touchstart', startRec);
+  micBtn.addEventListener('touchstart', startRec, {passive:false});
   micBtn.addEventListener('mousedown', startRec);
-  micBtn.addEventListener('touchend', stopRec);
-  micBtn.addEventListener('mouseup', stopRec);
+  micBtn.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  // الإيقاف بيشتغل من أي مكان بالشاشة (حتى لو انزلق الإصبع برا الزر أو انقطعت اللمسة)
+  ['touchend','touchcancel','mouseup','pointerup','pointercancel','dragend'].forEach(function(ev){
+    window.addEventListener(ev, function(){ stopRec(); }, true);
+  });
+  window.addEventListener('blur', function(){ stopRec(true); });
+  window.addEventListener('pagehide', function(){ stopRec(true); });
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) stopRec(true); });
+  window.__stopMic = function(){ stopRec(true); };
 
   // ========== تحويل الصوت لنص (المرحلة الأولى - اختبار فقط) ==========
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1591,18 +1739,31 @@
       showToast('ما قدرت أسمعك - جرّب كمان مرة (' + ev.error + ')');
     };
     recognizer.onend = function(){
+      clearTimeout(recSafety); clearTimeout(recAbort);
       recActive = false;
       micBtn.classList.remove('recording');
       const active = document.querySelector('.screen.active').dataset.screen;
       voiceHint.textContent = voiceLabels[active].text;
     };
 
-    try{ recognizer.start(); }catch(e){ recActive = false; micBtn.classList.remove('recording'); }
+    try{ recognizer.start(); }catch(e){ recActive = false; micBtn.classList.remove('recording'); return; }
+    // مؤقت أمان: المايك ما بيضل شغال أكتر من 15 ثانية مهما صار
+    clearTimeout(recSafety);
+    recSafety = setTimeout(function(){ stopRec(true); }, 15000);
   }
-  function stopRec(){
-    if(recognizer && recActive){
-      recognizer.stop();
-    }
+  let recSafety = null, recAbort = null;
+  function stopRec(hard){
+    if(!recActive || !recognizer) return;
+    const r = recognizer;
+    try{ hard === true ? r.abort() : r.stop(); }catch(e){}
+    // إذا ما أنهى حالو خلال ثانيتين بنقطعو بالقوة وبنرجع الزر لوضعو
+    clearTimeout(recAbort);
+    recAbort = setTimeout(function(){
+      try{ r.abort(); }catch(e){}
+      recActive = false;
+      micBtn.classList.remove('recording');
+      try{ const a = document.querySelector('.screen.active').dataset.screen; voiceHint.textContent = voiceLabels[a].text; }catch(e){}
+    }, 2000);
   }
 
   /* ========== المخزون - المصدر الوحيد للأسعار (المبيع بياخذ أسعاره منه) ========== */
@@ -1796,6 +1957,7 @@
   }
 
   function showCategories(){
+    updatePresetHint();
     document.getElementById('breadcrumb').style.display = 'none';
     const grid = document.getElementById('circleGrid');
     grid.innerHTML = inventory.map(c => `
@@ -1841,6 +2003,7 @@
       return;
     }
     closeQuickItemPrompt();
+    if(isIncomplete(match)){ completeItem(match.id); return; }
     if(match.isBulk){
       openWeightEntry(match.id);   // مادة فلش → تفتح خانة الوزن
     } else {
@@ -1860,7 +2023,7 @@
           ${pencilBadge(`editStockItem(${it.id})`)}
         </div>
         <span>${it.name}</span>
-        <small>${it.isBulk ? fmtSaleOf(it)+' ل.س/'+unitOf(it) : fmtMoney(it.sale)+' ل.س'}${it.qty<=5 ? ' ⚠️' : ''}</small>
+        <small>${isIncomplete(it) ? '' : (it.isBulk ? fmtSaleOf(it)+' ل.س/'+unitOf(it) : fmtMoney(it.sale)+' ل.س')}${(!isIncomplete(it) && it.qty<=5) ? ' ⚠️' : ''}</small>
         ${(!it.isBulk && it.gramsPerPiece) ? `<small onclick="event.stopPropagation(); openWeightEntry(${it.id})" style="display:inline-block; margin-top:4px; padding:5px 12px; border-radius:14px; background:#e3efe9; color:#1f7a5c; font-weight:700;">⚖️ بالوزن</small>` : ''}
       </div>
     `).join('') + `
@@ -1874,6 +2037,7 @@
   function handleProductTap(itemId){
     const it = findItemById(itemId);
     if(!it) return;
+    if(isIncomplete(it)){ completeItem(itemId); return; }
     if(it.isBulk){ openWeightEntry(itemId); }
     else{ addToCart(itemId); }
   }
@@ -2170,14 +2334,21 @@
   function normCat(s){ return (s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
 
   function uVals(){
-    const inText = uStr('u_inunit');
-    const saleText = uStr('u_saleunit') || inText;
-    return {
+    const rawIn = uStr('u_inunit'), rawSale = uStr('u_saleunit');
+    const inText = rawIn || rawSale;      // وحدة وحدة بتكفي: التانية بتاخد نفس الاسم
+    const saleText = rawSale || rawIn;
+    const v = {
       cat: uStr('u_cat'), name: uStr('u_name'),
       inText, saleText, E: unitInfoOf(inText), S: unitInfoOf(saleText),
       total: uNum('u_total'), measure: uNum('u_measure'), measureUnit: document.getElementById('u_measureunit').value,
       count: uNum('u_count'), per: uNum('u_per'), sale: uNum('u_sale')
     };
+    // إذا التاجر كتب سعر شراء الوحدة الواحدة: سعر الكمية كاملة = سعر الوحدة × الكمية بوحدات المبيع
+    if(uCostLast === 'unit' && uNum('u_unitcost') > 0){
+      const pt = unifiedPlan(Object.assign({}, v, {total:1}));
+      v.total = +(uNum('u_unitcost') * pt.qtyInSaleUnits).toFixed(4);
+    }
+    return v;
   }
 
   function unifiedLayout(v){
@@ -2235,6 +2406,8 @@
     return p;
   }
 
+  let uCostLast = 'total';   // آخر خانة سعر شراء كتب فيها التاجر: 'total' (الكمية كاملة) أو 'unit' (الوحدة الواحدة)
+  function onCostTyped(which){ uCostLast = which; updateUnifiedForm(); }
   let uMeasureKey = '';
   let uAlertKey = '';
 
@@ -2273,6 +2446,14 @@
 
     // وحدة تنبيه انخفاض الكمية
     const plan = unifiedPlan(v);
+    const costLbl = document.getElementById('u_unitcostLabel');
+    if(costLbl) costLbl.textContent = 'أو سعر شراء ال' + sName + ' الواحد(ة)';
+    if(uCostLast === 'unit'){
+      document.getElementById('u_total').value = v.total > 0 ? +v.total.toFixed(2) : '';
+    } else {
+      const totNow = uNum('u_total');
+      document.getElementById('u_unitcost').value = (totNow > 0 && plan.qtyInSaleUnits > 0) ? +(totNow / plan.qtyInSaleUnits).toFixed(2) : '';
+    }
     const alertKey = plan.isBulk ? ('b|' + lay.type + '|' + v.S.code) : ('c|' + v.saleText);
     if(alertKey !== uAlertKey){
       uAlertKey = alertKey;
@@ -2328,17 +2509,82 @@
     renderCatChips();
   }
 
+  // ===== قائمة النواقص عند حفظ المادة =====
+  function uMissing(){
+    const v = uVals(), plan = unifiedPlan(v), m = [];
+    const txt = id => (document.getElementById(id).textContent || '').trim();
+    if(!v.cat) m.push({label:'القسم', cat:true});
+    if(!v.name) m.push({label:'اسم المادة', field:'u_name'});
+    if(!v.inText) m.push({label:'الوحدة (وحدة الإدخال أو وحدة المبيع - وحدة وحدة بتكفي)', field:'u_inunit'});
+    else if(plan.lay.mode === 'invalid') m.push({label:'وحدة الإدخال ووحدة المبيع مو متوافقتين (وزن مع حجم)', field:'u_saleunit'});
+    else {
+      const md = plan.lay.mode;
+      if(md === 'measure'){ if(!v.measure) m.push({label:txt('u_measureLabel'), field:'u_measure'}); }
+      else {
+        if(!v.count) m.push({label:txt('u_countLabel'), field:'u_count'});
+        if((md === 'count_to_count' || md === 'count_to_measure') && !v.per) m.push({label:txt('u_perLabel'), field:'u_per'});
+      }
+    }
+    if(!v.total) m.push({label:'سعر الشراء (للكمية كاملة أو للوحدة الواحدة)', field:'u_total'});
+    if(!v.sale) m.push({label:txt('u_saleLabel'), field:'u_sale'});
+    return m;
+  }
+  function showMissing(){
+    renderMissing();
+    document.getElementById('missingOverlay').classList.add('show');
+  }
+  function closeMissing(){ try{ const a = document.activeElement; if(a && a !== document.body) a.blur(); }catch(e){} document.getElementById('missingOverlay').classList.remove('show'); }
+  function renderMissing(){
+    const list = uMissing();
+    if(!list.length){ closeMissing(); showToast('تمام ✅ هلق اضغط حفظ المادة'); return; }
+    const box = document.getElementById('missingList');
+    box.innerHTML = '';
+    list.forEach(item => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'mode-tab';
+      b.style.cssText = 'display:block; width:100%; text-align:right; margin:0 0 8px; padding:11px 14px;';
+      b.textContent = '❗ ' + item.label;
+      b.onclick = () => { if(item.cat){ document.getElementById('missingNewCat').focus(); } else { goToMissingField(item.field); } };
+      box.appendChild(b);
+    });
+    const needCat = list.some(i => i.cat);
+    document.getElementById('missingCatBox').style.display = needCat ? 'block' : 'none';
+    if(needCat){
+      document.getElementById('missingCatChips').innerHTML = inventory.map((c, i) =>
+        `<button type="button" class="mode-tab" style="flex:0 0 auto; padding:8px 14px; margin:0;" onclick="pickMissingCat(${i})">${c.icon} ${c.name}</button>`).join('');
+    }
+  }
+  function pickMissingCat(i){ pickCat(i); renderMissing(); }
+  function applyMissingNewCat(){
+    const name = document.getElementById('missingNewCat').value.trim();
+    if(!name){ showToast('اكتب اسم القسم الجديد'); return; }
+    document.getElementById('u_cat').value = name;
+    document.getElementById('missingNewCat').value = '';
+    updateCatHint();
+    renderMissing();
+  }
+  function goToMissingField(id){
+    closeMissing();
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.style.outline = '2px solid #d33';
+    setTimeout(() => { el.style.outline = ''; }, 2500);
+    setTimeout(() => { try{ el.focus(); }catch(e){} }, 300);
+  }
+
   function addItem(catId){
     const cat = catId ? inventory.find(c => c.id === catId) : null;
-    ['u_name','u_inunit','u_saleunit','u_total','u_measure','u_count','u_per','u_sale','u_expiry','u_minalert'].forEach(id => document.getElementById(id).value = '');
+    ['u_name','u_inunit','u_saleunit','u_total','u_unitcost','u_measure','u_count','u_per','u_sale','u_expiry','u_minalert'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('u_cat').value = cat ? cat.name : '';
-    uMeasureKey = ''; uAlertKey = '';
+    uMeasureKey = ''; uAlertKey = ''; uCostLast = 'total';
     updateCatHint();
     updateUnifiedForm();
     document.getElementById('itemFormOverlay').classList.add('show');
   }
 
   function closeItemForm(){
+    try{ const a = document.activeElement; if(a && a !== document.body) a.blur(); }catch(e){}
     document.getElementById('itemFormOverlay').classList.remove('show');
   }
 
@@ -2348,13 +2594,7 @@
     const expiry = document.getElementById('u_expiry').value || null;
     const minAlertRaw = document.getElementById('u_minalert').value ? Number(document.getElementById('u_minalert').value) : null;
 
-    if(!v.cat){ showToast('اختر قسم أو اكتب اسم قسم جديد'); return; }
-    if(!v.name){ showToast('اكتب اسم المادة'); return; }
-    if(!v.inText){ showToast('اكتب وحدة الإدخال'); return; }
-    if(plan.lay.mode === 'invalid'){ showToast('وحدة الإدخال ووحدة المبيع مو متوافقتين (وزن مع حجم)'); return; }
-    if(!v.total){ showToast('اكتب سعر شراء الكمية كاملة'); return; }
-    if(!(plan.qty > 0)){ showToast('اكتب الكمية أو العدد'); return; }
-    if(!v.sale){ showToast('اكتب سعر البيع'); return; }
+    if(uMissing().length){ showMissing(); return; }   // في نقص: بتطلع قائمة بالنواقص بدل ما ما يصير شي
 
     let minAlert = minAlertRaw;
     if(minAlertRaw !== null && plan.isBulk){
@@ -2364,11 +2604,28 @@
 
     // إذا الاسم مطابق لمادة موجودة أصلاً - نزيد على كميتها ونحدّث أسعارها بدل ما نكرر المادة
     const existing = findItemByName(v.name);
+    if(existing && isIncomplete(existing)){
+      // مادة من القوائم الجاهزة لسا ما انعبّت: بنكتب بياناتها كاملة
+      existing.unit = plan.unit; existing.qty = plan.qty; existing.purchase = plan.purchase; existing.sale = plan.sale;
+      existing.isBulk = !!plan.isBulk;
+      if(plan.isBulk && plan.dispUnit) existing.dispUnit = plan.dispUnit; else delete existing.dispUnit;
+      if(plan.gpp) existing.gramsPerPiece = plan.gpp; else delete existing.gramsPerPiece;
+      existing.expiry = expiry; existing.minAlert = minAlert;
+      existing.dismissedLow = false; existing.dismissedExpiry = false;
+      const oc = inventory.find(c => c.items.includes(existing));
+      closeItemForm();
+      showToast('"' + existing.name + '" صارت جاهزة للبيع ✅');
+      try{ if(document.querySelector('[data-screen="sale"]').classList.contains('active')) openCategory(oc.id); }catch(e){}
+      openStockCategory(oc.id);
+      renderReminders();
+      return;
+    }
     if(existing){
-      if(existing.unit !== plan.unit){
+      if(existing.unit && existing.unit !== plan.unit){
         showToast('هاي المادة مسجلة بوحدة "' + existing.unit + '" - خلي وحدة المبيع تطابقها');
         return;
       }
+      if(!existing.unit) existing.unit = plan.unit;
       existing.qty = +(existing.qty + plan.qty).toFixed(3);
       existing.purchase = plan.purchase;   // السعر الجديد بينطبق على كل الكمية (متل ما اتفقنا)
       existing.sale = plan.sale;
@@ -2408,6 +2665,7 @@
   }
 
   function showStockCategories(){
+    updatePresetHint();
     currentStockCatId = null;
     document.getElementById('stockBreadcrumb').style.display = 'none';
     const grid = document.getElementById('stockCircleGrid');
@@ -2434,7 +2692,15 @@
     document.querySelector('#stockBreadcrumb span').textContent = `‹ ${cat.name} - رجوع للأقسام`;
     const grid = document.getElementById('stockCircleGrid');
     grid.innerHTML = `<div class="placeholder-list" style="padding:0; margin-bottom:14px; grid-column:1/-1;">` +
-      cat.items.map(it => it.qty <= 0 ? `
+      cat.items.map(it => isIncomplete(it) ? `
+        <div class="placeholder-row" onclick="completeItem(${it.id})" style="cursor:pointer;">
+          <span><b>${it.name}</b></span>
+          <span style="display:flex; align-items:center; gap:12px;">
+            <b onclick="event.stopPropagation(); deleteStockItem(${it.id})" style="cursor:pointer; color:#b3261e;">🗑 حذف</b>
+            <span class="edit-pencil static" onclick="event.stopPropagation(); editStockItem(${it.id})">✏️</span>
+          </span>
+        </div>
+      ` : it.qty <= 0 ? `
         <div class="placeholder-row">
           <span><b>${it.name}</b><br><span style="color:#b3261e; font-weight:700;">خلصت ✋</span> · ${unitOf(it)} · آخر شراء: ${fmtCostOf(it)} | بيع: ${fmtSaleOf(it)}</span>
           <span style="display:flex; align-items:center; gap:12px;">
@@ -2475,7 +2741,7 @@
   function deleteStockItem(itemId){
     const it = findItemById(itemId);
     if(!it) return;
-    if(!confirm('بدك تحذف "' + it.name + '" من المخزون؟\n(الفواتير القديمة وسجل التالف ما بيتأثروا)')) return;
+    if(!isIncomplete(it) && !confirm('بدك تحذف "' + it.name + '" من المخزون؟\n(الفواتير القديمة وسجل التالف ما بيتأثروا)')) return;
     const owner = inventory.find(c => c.items.includes(it));
     if(it.damagedEntries && it.damagedEntries.length){
       it.damagedEntries.forEach(e => unlinkedDamaged.push({id:e.id, name:e.name || it.name, weight:e.weight, price:e.price, date:e.date}));
@@ -2491,6 +2757,7 @@
 
   /* ===== التنبيهات: صلاحية قاربت + كمية منخفضة ===== */
   function isLowStock(it){
+    if(isIncomplete(it)) return false;   // مادة لسا ما انعبّت: ما بتعطي تحذير نفاد
     const threshold = it.minAlert !== null ? it.minAlert : 1;   // افتراضياً: تنبيه لما يضل قطعة/حبة وحدة
     return it.qty <= threshold;
   }
@@ -2502,6 +2769,54 @@
 
   function allItems(){
     return inventory.flatMap(c => c.items.map(it => ({...it, catId:c.id})));
+  }
+
+  /* ===== القوائم الجاهزة: أسماء مواد شائعة بدون أسعار، التاجر بيعبّيها على راحتو ===== */
+  const PRESETS = [
+    {id:'p_grocery', name:'سمانة', icon:'🛒', items:['رز','سكر','برغل','طحين','عدس','عدس شوربا','حمص','فول','فاصوليا','فاصوليا كلاوي','فريكة','شعيرية','معكرونة','سباغيتي','نشا','ملح','زيت نباتي','زيت زيتون','سمنة','شاي','قهوة','نسكافيه','كاكاو','خميرة','بيكنج باودر','فانيلا','دبس بندورة','دبس فليفلة','دبس رمان','خل','مربى','طحينة','حلاوة','دبس تمر','عسل','قداحات','بيض']},
+    {id:'p_dairy', name:'ألبان', icon:'🥛', items:['لبن','حليب','لبنة','قشطة','زبدة','حليب بودرة','حليب مكثف','شنكليشة','قريشة','زبدة عربي']},
+    {id:'p_cheese', name:'أجبان', icon:'🧀', items:['جبنة بيضا','جبنة عكاوي','جبنة حلوم','جبنة شلل','جبنة مجدولة','جبنة قشقوان','جبنة رومي','جبنة مثلثات','جبنة كريمي','جبنة شيدر','جبنة موزاريلا']},
+    {id:'p_veg', name:'خضراوات', icon:'🥬', items:['بندورة','خيار','بطاطا','بصل','ثوم','جزر','باذنجان','كوسا','فليفلة','فلفل حار','ملفوف','خس','بقدونس','نعنع','فجل','بامية','فاصوليا خضرا','بازلاء','ليمون','سلق','سبانخ','جرجير','بصل أخضر','لفت','بطاطا حلوة']},
+    {id:'p_fruit', name:'فواكه', icon:'🍎', items:['تفاح','موز','برتقال','عنب','رمان','كيوي','خوخ','دراق','مشمش','إجاص','كرز','فريز','جبس','بطيخ','تين','أناناس','أفوكادو']},
+    {id:'p_nuts', name:'موالح', icon:'🥜', items:['بزر ميال','فستق','بزر أبيض','بزر كوسا','لوز','فستق حلبي','كاجو','بزر جبس','قضامة','جوز','فستق مدخن']},
+    {id:'p_spice', name:'بهارات', icon:'🌶️', items:['فلفل أسود','فلفل أحمر حار','فلفل أحمر حلو','كمون','كزبرة ناشفة','قرفة','هيل','يانسون','زعتر','سماق','سبع بهارات','كركم','زنجبيل','قرنفل','جوزة الطيب','مستكة','حبة البركة','زعفران','ورق غار','كاري','بهار كبسة','ملح ليمون']},
+    {id:'p_biscuit', name:'بسكويت', icon:'🍪', items:['بسكويت سادة','بسكويت بالحليب','بسكويت محشي','بسكويت بالشوكولا','ويفر','كيك','كرواسان','معمول','كعك','شوكولا','سكاكر','علكة','مصاصات','توفي','حلقوم']},
+    {id:'p_chips', name:'شيبس', icon:'🥔', items:['شيبس سادة','شيبس بالملح','شيبس كاتشب','شيبس جبنة','شيبس فلفل حار','شيبس ليمون','شيبس ذرة','بوشار']},
+    {id:'p_icecream', name:'بوظة', icon:'🍦', items:['بوظة عصا','بوظة كأس','بوظة كورنيت','بوظة علبة','بوظة شوكولا','بوظة فانيلا','بوظة فريز','بوظة مانجو','مثلجات']},
+    {id:'p_canned', name:'معلبات', icon:'🥫', items:['تونا','سردين','فول معلب','حمص معلب','فاصوليا معلبة','ذرة معلبة','بازلاء معلبة','فطر معلب','زيتون أخضر','زيتون أسود','مخلل خيار','مخلل لفت','مخلل مشكل','فلفل مخلل','كاتشب','مايونيز','صلصة حارة','مرتديلا']},
+    {id:'p_drinks', name:'مشروبات', icon:'🥤', items:['كولا سودة - كبير','كولا سودة - وسط','كولا سودة - صغير','كولا حمرة - كبير','كولا حمرة - وسط','كولا حمرة - صغير','كولا سادة - كبير','كولا سادة - وسط','كولا سادة - صغير','مياه - صغير','مياه - كبير','عصير طبيعي - كبير','عصير طبيعي - صغير','مشروب طاقة','كولا تنك','قهوة باردة']},
+    {id:'p_clean', name:'مواد تنظيف', icon:'🧼', items:['صابون','شامبو','منظف أرضيات','سائل جلي','مسحوق غسيل','كلور','معقم','منظف زجاج','منظف حمام','محارم','ورق تواليت','مناديل مبللة','فوط مطبخ','إسفنج جلي','أكياس قمامة','معجون أسنان','فرشاة أسنان','شفرات حلاقة','حفاضات أطفال','فوط نسائية','مبيد حشرات','مساحات']}
+  ];
+  function seedPresets(){
+    PRESETS.forEach(p => {
+      inventory.push({ id:p.id, name:p.name, icon:p.icon, items: p.items.map(n => ({
+        id:nextItemId++, name:n, unit:'', purchase:0, sale:0, qty:0, expiry:null, minAlert:null,
+        isBulk:false, dismissedLow:false, dismissedExpiry:false, damagedEntries:[]
+      })) });
+    });
+  }
+  // المادة "ناقصة" = لسا ما انحط لها سعر بيع. بتضل ظاهرة، بس بلا تنبيهات وبتفتح فورم التعبئة لما التاجر يضغط عليها
+  function isIncomplete(it){ return !(Number(it.sale) > 0); }
+  function completeItem(itemId){
+    const it = findItemById(itemId);
+    if(!it) return;
+    const owner = inventory.find(c => c.items.includes(it));
+    addItem(owner ? owner.id : null);
+    const nameEl = document.getElementById('u_name');
+    nameEl.value = it.name;
+    nameEl.dispatchEvent(new Event('input'));
+    const box = document.getElementById('u_nameBox'); if(box) box.classList.remove('show');
+    showToast('عبّي بيانات "' + it.name + '" ليصير جاهز للبيع');
+    setTimeout(() => { try{ document.getElementById('u_inunit').focus(); }catch(e){} }, 250);
+  }
+  function hidePresetHint(){
+    try{ localStorage.setItem('presetHintHidden', '1'); }catch(e){}
+    updatePresetHint();
+  }
+  function updatePresetHint(){
+    let hidden = false; try{ hidden = localStorage.getItem('presetHintHidden') === '1'; }catch(e){}
+    const show = !hidden && allItems().some(isIncomplete);
+    ['presetHintSale','presetHintStock'].forEach(id => { const e = document.getElementById(id); if(e) e.style.display = show ? '' : 'none'; });
   }
 
   function renderReminders(){
@@ -2685,6 +3000,7 @@
     if(!m) return;
     const owner = inventory.find(c => c.items.includes(m));
     if(owner) document.getElementById('u_cat').value = owner.name;
+    if(isIncomplete(m)){ updateCatHint(); updateUnifiedForm(); return; }
     if(!uStr('u_saleunit')){
       if(m.isBulk){
         document.getElementById('u_saleunit').value = m.unit === 'مل' ? 'لتر' : 'كيلو';
@@ -2713,25 +3029,31 @@
       showToast('هالمادة مو مسجلة بالمخزون - دوس "+ مادة جديدة" لتسجيلها أول مرة');
       return;
     }
+    if(isIncomplete(stockItem)){ completeItem(stockItem.id); return; }
 
     if(stockItem.isBulk){
       const raw = Number(weightInput.value);
-      if(!raw || raw <= 0){ showToast('اكتب الرقم يلي بالميزان لأنها مادة فلش'); return; }
+      const amtIn = Number(document.getElementById('qaSaleAmount').value) || 0;
+      if((!raw || raw <= 0) && !(amtIn > 0)){ showToast('اكتب الوزن أو المبلغ لأنها مادة فلش'); return; }
       const unitInfo = SCALE_UNITS.find(u => u.value === document.getElementById('qaSaleWeightUnit').value) || SCALE_UNITS[0];
-      const g = +(raw * unitInfo.base).toFixed(3);
+      const g = (raw > 0) ? +(raw * unitInfo.base).toFixed(3) : +(amtIn / stockItem.sale).toFixed(3);
       const already = currentCart.filter(c => c.id === stockItem.id).reduce((s,c)=>s+c.qty, 0);
       const available = stockItem.qty - already;
       if(g > available){ showToast('الكمية أكبر من المتوفر بالمخزون (' + available + ' ' + stockItem.unit + ') ⚠️'); return; }
-      const existing = currentCart.find(c => c.id === stockItem.id);
-      if(existing){ existing.qty += g; }
-      else{ currentCart.push({id:stockItem.id, name:stockItem.name, price:stockItem.sale, purchase:stockItem.purchase, qty:g, isBulk:true}); }
+      if(raw > 0 && amtIn > 0 && g > 0){
+        currentCart.push({id:stockItem.id, name:stockItem.name, price:amtIn / g, purchase:stockItem.purchase, qty:g, isBulk:true, customTotal:true});   // وزن فعلي + مبلغ: المبلغ ثابت والمخزون بيخصم الوزن الفعلي
+      } else {
+        const existing = currentCart.find(c => c.id === stockItem.id && !c.customTotal);
+        if(existing){ existing.qty += g; }
+        else{ currentCart.push({id:stockItem.id, name:stockItem.name, price:stockItem.sale, purchase:stockItem.purchase, qty:g, isBulk:true}); }
+      }
       showToast(stockItem.name + ' أُضيفت (' + g + ' ' + stockItem.unit + ')');
     } else {
       // مادة معدودة (قرص/علبة...) والتاجر كتب وزن (نص كيلو مثلاً): منفتحله نافذة البيع بالوزن بسعر تقريبي يعدّله بمزاجه
       const wRaw = Number(weightInput.value);
       if(wRaw > 0){
         const unitVal = document.getElementById('qaSaleWeightUnit').value;
-        nameInput.value = ''; qtyInput.value = ''; weightInput.value = '';
+        nameInput.value = ''; qtyInput.value = ''; weightInput.value = ''; document.getElementById('qaSaleAmount').value = '';
         document.getElementById('qaSalePricePreview').style.display = 'none';
         openWeightEntry(stockItem.id);
         document.getElementById('weightInput').value = wRaw;
@@ -2748,7 +3070,7 @@
       showToast(stockItem.name + ' أُضيفت للفاتورة');
     }
 
-    nameInput.value = ''; qtyInput.value = ''; weightInput.value = '';
+    nameInput.value = ''; qtyInput.value = ''; weightInput.value = ''; document.getElementById('qaSaleAmount').value = '';
     document.getElementById('qaSalePricePreview').style.display = 'none';
     renderReceipt();
   }
@@ -2763,12 +3085,14 @@
   let weightTargetId = null;
   let wPiecesTouched = false;   // التاجر عدّل عدد القطع يدوياً (منوقف التقدير التلقائي)
   let wPriceTouched = false;    // التاجر عدّل السعر يدوياً
+  let wAmtManual = false, wWtManual = false;   // التاجر كتب المبلغ/الوزن بإيده: بيتثبّت وما بيتغيّر تلقائياً (فلش)
   let weightMode = 'sale';   // 'sale' = بينضاف للفاتورة، 'damaged' = بينسجل تالف مباشرة
 
   function openWeightEntry(itemId, mode){
     weightTargetId = itemId;
     weightMode = mode || 'sale';
     const it = findItemById(itemId);
+    if(it && weightMode !== 'damaged' && isIncomplete(it)){ completeItem(itemId); return; }
     const isDamaged = weightMode === 'damaged';
     const isPiece = !it.isBulk && !isDamaged;   // مادة معدودة بتنباع بالوزن: التاجر بيحدد كم قطعة راح وبكم باع
     document.getElementById('weightModalTitle').textContent = (it.unit === 'مل' ? 'قياس الحجم' : 'وزن الميزان الإلكتروني') + (isDamaged ? ' - تسجيل تالف' : '');
@@ -2782,6 +3106,9 @@
     document.getElementById('weightInput').value = '';
     document.getElementById('weightPreview').textContent = '';
     document.getElementById('weightPieceBox').style.display = isPiece ? 'block' : 'none';
+    document.getElementById('weightAmountBox').style.display = (it.isBulk && !isDamaged) ? 'block' : 'none';
+    document.getElementById('weightAmount').value = '';
+    wAmtManual = false; wWtManual = false;
     if(isPiece){
       wPiecesTouched = false; wPriceTouched = false;
       document.getElementById('weightPieces').value = '';
@@ -2811,6 +3138,34 @@
   }
   function onWeightPriceInput(){ wPriceTouched = true; }
 
+  // فلش: أي خانة كتبها التاجر بإيده (وزن أو مبلغ) بتتثبّت، والتانية بتنحسب لحالها لحد ما يعدّلها هو كمان
+  function onWeightTyped(){
+    wWtManual = document.getElementById('weightInput').value !== '';
+    updateWeightPreview();
+  }
+  function showBulkDiff(it){
+    const amt = Number(document.getElementById('weightAmount').value) || 0;
+    const unitInfo = SCALE_UNITS.find(u => u.value === document.getElementById('weightUnitSelect').value) || SCALE_UNITS[0];
+    const g = (Number(document.getElementById('weightInput').value) || 0) * unitInfo.base;
+    const exp = (amt > 0 && it.sale > 0) ? amt / it.sale : 0;
+    const pv = document.getElementById('weightPreview');
+    if(!(amt > 0) || !(g > 0)){ pv.textContent = ''; return; }
+    let txt = 'المبلغ ' + Math.round(amt).toLocaleString('en-US') + ' ل.س - الوزن الفعلي ' + (+g.toFixed(1)).toLocaleString('en-US') + ' ' + it.unit;
+    if(wWtManual && Math.abs(g - exp) >= 1){ txt += ' (حسب السعر العادي ≈ ' + (+exp.toFixed(1)).toLocaleString('en-US') + ' ' + it.unit + ') - المخزون بينخصم منه الوزن الفعلي'; }
+    pv.textContent = txt;
+  }
+  function onWeightAmountInput(){
+    const it = findItemById(weightTargetId);
+    if(!it || !it.isBulk || weightMode === 'damaged') return;
+    wAmtManual = document.getElementById('weightAmount').value !== '';
+    const amt = Number(document.getElementById('weightAmount').value) || 0;
+    const unitInfo = SCALE_UNITS.find(u => u.value === document.getElementById('weightUnitSelect').value) || SCALE_UNITS[0];
+    if(!wWtManual){
+      document.getElementById('weightInput').value = (amt > 0 && it.sale > 0) ? +((amt / it.sale) / unitInfo.base).toFixed(3) : '';
+    }
+    showBulkDiff(it);
+  }
+
   function closeWeight(){
     document.getElementById('weightOverlay').classList.remove('show');
   }
@@ -2818,6 +3173,7 @@
   function updateWeightPreview(){
     const it = findItemById(weightTargetId);
     if(!it) return;
+    if(it.isBulk && weightMode !== 'damaged' && wAmtManual && !wWtManual){ onWeightAmountInput(); return; }
     const raw = Number(document.getElementById('weightInput').value) || 0;
     const unitInfo = SCALE_UNITS.find(u => u.value === document.getElementById('weightUnitSelect').value) || SCALE_UNITS[0];
     const g = raw * unitInfo.base;
@@ -2833,6 +3189,10 @@
     }
     const priceRef = weightMode === 'damaged' ? it.purchase : it.sale;
     document.getElementById('weightPreview').textContent = g ? ('يعني ' + g.toLocaleString('en-US') + ' ' + it.unit + ' - السعر: ' + Math.round(g * priceRef).toLocaleString('en-US') + ' ل.س') : '';
+    if(it.isBulk && weightMode !== 'damaged'){
+      if(!wAmtManual){ document.getElementById('weightAmount').value = g ? Math.round(g * it.sale) : ''; }
+      else { showBulkDiff(it); }
+    }
   }
 
   function confirmWeightAdd(){
@@ -2841,7 +3201,15 @@
     const raw = Number(document.getElementById('weightInput').value);
     if(!raw || raw <= 0){ showToast('اكتب الرقم يلي طلع بالميزان'); return; }
     const unitInfo = SCALE_UNITS.find(u => u.value === document.getElementById('weightUnitSelect').value) || SCALE_UNITS[0];
-    const g = +(raw * unitInfo.base).toFixed(3);
+    let g = +(raw * unitInfo.base).toFixed(3);
+    let customTotal = 0;
+    if(it.isBulk && weightMode !== 'damaged' && wAmtManual){
+      const amt = Number(document.getElementById('weightAmount').value) || 0;
+      if(amt > 0 && it.sale > 0){
+        if(wWtManual){ customTotal = amt; }                 // كتب الوزن الفعلي والمبلغ: المبلغ ثابت والمخزون بيخصم الوزن الفعلي
+        else { g = +(amt / it.sale).toFixed(3); }           // كتب المبلغ بس: الوزن منو مباشرة (أدق من المقرّب)
+      }
+    }
 
     if(weightMode === 'damaged'){
       if(g > it.qty){ showToast('الكمية أكبر من المتوفر بالمخزون (' + it.qty + ' ' + it.unit + ') ⚠️'); return; }
@@ -2876,9 +3244,13 @@
     const available = it.qty - already;
     if(g > available){ showToast('الكمية أكبر من المتوفر بالمخزون (' + available + ' ' + it.unit + ') ⚠️'); return; }
 
-    const existing = currentCart.find(c => c.id === it.id);
-    if(existing){ existing.qty += g; }
-    else{ currentCart.push({id:it.id, name:it.name, price:it.sale, purchase:it.purchase, qty:g, isBulk:true}); }
+    if(customTotal > 0){
+      currentCart.push({id:it.id, name:it.name, price:customTotal / g, purchase:it.purchase, qty:g, isBulk:true, customTotal:true});
+    } else {
+      const existing = currentCart.find(c => c.id === it.id && !c.customTotal);
+      if(existing){ existing.qty += g; }
+      else{ currentCart.push({id:it.id, name:it.name, price:it.sale, purchase:it.purchase, qty:g, isBulk:true}); }
+    }
 
     closeWeight();
     renderReceipt();
@@ -3636,7 +4008,7 @@
       ? `اليوم: ${stats.count} فاتورة - ${fmtMoney(stats.revenue)} ل.س`
       : 'فواتير كاش ودين بضغطة';
 
-    const itemsCount = allItems().length;
+    const itemsCount = allItems().filter(it => !isIncomplete(it)).length;
     const lowCount = allItems().filter(it => isLowStock(it)).length;
     document.getElementById('homeStockSummary').textContent = `${itemsCount} مادة مسجّلة${lowCount ? ` - ${lowCount} وشيكة تخلص ⚠️` : ''}`;
 
@@ -3754,6 +4126,17 @@
   let lastItemIds = new Set();
   let lastCatIds = new Set();
   let failedOnce = false;
+  let seedFlagPending = false;
+  const mir = OFF.mirror('inventory', {
+    ser: () => JSON.stringify(inventory),
+    restore: (str) => {
+      const a = JSON.parse(str); inventory.length = 0; let mx = 0;
+      a.forEach(c => { inventory.push(c); (c.items || []).forEach(i => { if(Number(i.id) > mx) mx = Number(i.id); }); });
+      if(mx >= nextItemId) nextItemId = mx + 1;
+    },
+    isDirty: (str) => str !== lastSnapshot,
+    isCloud: () => cloudReady
+  });
 
   function toRows(){
     const cats = [], items = [];
@@ -3802,11 +4185,15 @@
         if(r.error) throw r.error;
       }
       lastSnapshot = snap; lastItemIds = curItemIds; lastCatIds = curCatIds;
+      if(seedFlagPending){
+        const fr = await supabaseClient.from('app_data').upsert([{ owner_id:CURRENT_UID, key:'presets_seeded', value:true, updated_at:new Date().toISOString() }], {onConflict:'owner_id,key'});
+        if(!fr.error) seedFlagPending = false;
+      }
       failedOnce = false;
       showToast('☁️ انحفظ بقاعدة البيانات');
     }catch(e){
       console.error('فشل الحفظ:', e);
-      if(!failedOnce){ showToast('⚠️ ما انحفظ بقاعدة البيانات: ' + (e.message || e)); failedOnce = true; }
+      if(!failedOnce && navigator.onLine){ showToast('⚠️ ما انحفظ بقاعدة البيانات: ' + (e.message || e)); failedOnce = true; }
     }
     busy = false;
   }
@@ -3821,7 +4208,7 @@
     try{ if(typeof updateHomeSummaries === 'function') updateHomeSummaries(); }catch(e){}
   }
 
-  async function loadFromCloud(){
+  async function loadInner(){
     try{
       const [c, i] = await Promise.all([
         supabaseClient.from('categories').select('*').eq('owner_id', CURRENT_UID).order('sort_order'),
@@ -3831,12 +4218,24 @@
       if(i.error) throw i.error;
 
       if(c.data.length === 0){
-        // حساب جديد: بيبدأ فاضي بدون مواد تجريبية
+        // حساب فاضي: إذا أول مرة، بنحط القوائم الجاهزة (مرة وحدة بس - إذا حذفها التاجر ما بترجع)
         inventory.length = 0;
-        refreshScreens();
+        let seeded = false;
+        try{ seeded = localStorage.getItem('presetsSeeded:' + CURRENT_UID) === '1'; }catch(e){}
+        if(!seeded){
+          const f = await supabaseClient.from('app_data').select('key').eq('owner_id', CURRENT_UID).eq('key', 'presets_seeded');
+          if(f.error) throw f.error;
+          seeded = f.data.length > 0;
+        }
         cloudReady = true;
         lastSnapshot = JSON.stringify(inventory);
         lastItemIds = new Set(); lastCatIds = new Set();
+        if(!seeded){
+          seedPresets();
+          seedFlagPending = true;
+          try{ localStorage.setItem('presetsSeeded:' + CURRENT_UID, '1'); }catch(e){}
+        }
+        mir.overlay(); refreshScreens();
         return;
       }
 
@@ -3874,16 +4273,27 @@
       lastCatIds = new Set(c.data.map(r => r.id));
       cloudReady = true;
       try{ localStorage.setItem('inventorySeeded', '1'); }catch(e){}
+      mir.overlay();
       refreshScreens();
       showToast('☁️ تم تحميل المخزون من قاعدة البيانات');
     }catch(e){
       console.error('فشل التحميل:', e);
-      showToast('⚠️ ما قدرت أحمّل المخزون من قاعدة البيانات، بيشتغل التطبيق محلياً بس: ' + (e.message || e));
+      if(mir.restoreFallback()){ refreshScreens(); }
+      else showToast('⚠️ ما قدرت أحمّل المخزون من قاعدة البيانات، بيشتغل التطبيق محلياً بس: ' + (e.message || e));
     }
   }
 
-  setInterval(syncNow, 2500);
-  document.addEventListener('visibilitychange', () => { if(document.hidden) syncNow(); });
+
+  let loading = false, retryT = null;
+  async function loadFromCloud(){
+    if(loading) return; loading = true;
+    try{ await loadInner(); }finally{ loading = false; }
+    if(!cloudReady){ clearTimeout(retryT); retryT = setTimeout(loadFromCloud, 15000); }
+  }
+  window.addEventListener('online', () => { if(!cloudReady) loadFromCloud(); });
+  setInterval(() => { mir.tick(); syncNow(); }, 2500);
+  document.addEventListener('visibilitychange', () => { if(document.hidden){ mir.tick(); syncNow(); } });
+  window.addEventListener('pagehide', () => mir.tick());
   onUserReady(loadFromCloud);
 })();
 </script>
@@ -3915,6 +4325,28 @@
     return m;
   }
 
+  const mir = OFF.mirror('debts', {
+    ser: () => JSON.stringify(GROUPS.map(g => ({k:g.key, n:g.names, l:g.ledger, p:g.phones}))),
+    restore: (str) => {
+      const a = JSON.parse(str);
+      GROUPS.forEach(g => {
+        g.names.length = 0;
+        Object.keys(g.ledger).forEach(k => delete g.ledger[k]);
+        Object.keys(g.phones).forEach(k => delete g.phones[k]);
+        const src = a.find(x => x.k === g.key); if(!src) return;
+        (src.n || []).forEach(n => g.names.push(n));
+        Object.assign(g.ledger, src.l || {});
+        Object.assign(g.phones, src.p || {});
+      });
+    },
+    isDirty: () => {
+      const cur = currentMap();
+      return Object.keys(cur).some(k => lastMap[k] !== JSON.stringify({p:cur[k].phone, e:cur[k].entries})) ||
+             Object.keys(lastMap).some(k => !(k in cur));
+    },
+    isCloud: () => cloudReady
+  });
+
   async function syncNow(){
     if(!cloudReady || busy) return;
     const cur = currentMap();
@@ -3943,7 +4375,7 @@
       showToast('☁️ انحفظ دفتر الديون');
     }catch(e){
       console.error('فشل حفظ الديون:', e);
-      if(!failedOnce){ showToast('⚠️ ما انحفظ دفتر الديون: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
+      if(!failedOnce && navigator.onLine){ showToast('⚠️ ما انحفظ دفتر الديون: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
     }
     busy = false;
   }
@@ -3953,7 +4385,7 @@
     try{ if(typeof updateHomeSummaries === 'function') updateHomeSummaries(); }catch(e){}
   }
 
-  async function loadFromCloud(){
+  async function loadInner(){
     try{
       const r = await supabaseClient.from('debt_people').select('*').eq('owner_id', CURRENT_UID);
       if(r.error) throw r.error;
@@ -3965,9 +4397,10 @@
           Object.keys(g.ledger).forEach(k => delete g.ledger[k]);
           Object.keys(g.phones).forEach(k => delete g.phones[k]);
         });
-        refreshDebtScreens();
         cloudReady = true;
         lastMap = {};
+        mir.overlay();
+        refreshDebtScreens();
         return;
       }
 
@@ -3989,16 +4422,27 @@
       Object.keys(cur).forEach(k => lastMap[k] = JSON.stringify({p:cur[k].phone, e:cur[k].entries}));
       cloudReady = true;
       try{ localStorage.setItem('debtsSeeded', '1'); }catch(e){}
+      mir.overlay();
       refreshDebtScreens();
       showToast('☁️ تم تحميل دفتر الديون من قاعدة البيانات');
     }catch(e){
       console.error('فشل تحميل الديون:', e);
-      showToast('⚠️ ما قدرت أحمّل الديون من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
+      if(mir.restoreFallback()){ refreshDebtScreens(); }
+      else showToast('⚠️ ما قدرت أحمّل الديون من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
     }
   }
 
-  setInterval(syncNow, 2500);
-  document.addEventListener('visibilitychange', () => { if(document.hidden) syncNow(); });
+
+  let loading = false, retryT = null;
+  async function loadFromCloud(){
+    if(loading) return; loading = true;
+    try{ await loadInner(); }finally{ loading = false; }
+    if(!cloudReady){ clearTimeout(retryT); retryT = setTimeout(loadFromCloud, 15000); }
+  }
+  window.addEventListener('online', () => { if(!cloudReady) loadFromCloud(); });
+  setInterval(() => { mir.tick(); syncNow(); }, 2500);
+  document.addEventListener('visibilitychange', () => { if(document.hidden){ mir.tick(); syncNow(); } });
+  window.addEventListener('pagehide', () => mir.tick());
   onUserReady(loadFromCloud);
 })();
 </script>
@@ -4021,6 +4465,16 @@
     { key:'consumed_bills',       arr: CONSUMED_BILLS }         // أزرار الفواتير التشغيلية
   ];
 
+  const mir = OFF.mirror('damaged', {
+    ser: () => JSON.stringify(STATES.map(s => s.arr)),
+    restore: (str) => {
+      const a = JSON.parse(str);
+      STATES.forEach((s, i) => { s.arr.length = 0; (a[i] || []).forEach(x => s.arr.push(x)); });
+    },
+    isDirty: () => STATES.some(s => JSON.stringify(s.arr) !== lastMap[s.key]),
+    isCloud: () => cloudReady
+  });
+
   async function syncNow(){
     if(!cloudReady || busy) return;
     const changed = STATES.filter(s => JSON.stringify(s.arr) !== lastMap[s.key]);
@@ -4036,7 +4490,7 @@
       showToast('☁️ انحفظ التالف والمستهلك');
     }catch(e){
       console.error('فشل حفظ التالف والمستهلك:', e);
-      if(!failedOnce){ showToast('⚠️ ما انحفظ التالف والمستهلك: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
+      if(!failedOnce && navigator.onLine){ showToast('⚠️ ما انحفظ التالف والمستهلك: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
     }
     busy = false;
   }
@@ -4049,7 +4503,7 @@
     try{ if(typeof updateHomeSummaries === 'function') updateHomeSummaries(); }catch(e){}
   }
 
-  async function loadFromCloud(){
+  async function loadInner(){
     try{
       const keys = STATES.map(s => s.key);
       const r = await supabaseClient.from('app_data').select('*').eq('owner_id', CURRENT_UID).in('key', keys);
@@ -4066,17 +4520,28 @@
         // لو ما في سطر بالقاعدة، منبقي القيم المحلية ومنرفعها بأول حفظ
       });
       cloudReady = true;
+      mir.overlay();
       refreshScreens();
       showToast(r.data.length ? '☁️ تم تحميل التالف والمستهلك من قاعدة البيانات' : '☁️ جاهز لحفظ التالف والمستهلك');
       await syncNow();
     }catch(e){
       console.error('فشل تحميل التالف والمستهلك:', e);
-      showToast('⚠️ ما قدرت أحمّل التالف والمستهلك من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
+      if(mir.restoreFallback()){ refreshScreens(); }
+      else showToast('⚠️ ما قدرت أحمّل التالف والمستهلك من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
     }
   }
 
-  setInterval(syncNow, 2500);
-  document.addEventListener('visibilitychange', () => { if(document.hidden) syncNow(); });
+
+  let loading = false, retryT = null;
+  async function loadFromCloud(){
+    if(loading) return; loading = true;
+    try{ await loadInner(); }finally{ loading = false; }
+    if(!cloudReady){ clearTimeout(retryT); retryT = setTimeout(loadFromCloud, 15000); }
+  }
+  window.addEventListener('online', () => { if(!cloudReady) loadFromCloud(); });
+  setInterval(() => { mir.tick(); syncNow(); }, 2500);
+  document.addEventListener('visibilitychange', () => { if(document.hidden){ mir.tick(); syncNow(); } });
+  window.addEventListener('pagehide', () => mir.tick());
   onUserReady(loadFromCloud);
 })();
 </script>
@@ -4101,6 +4566,13 @@
     return new Date(ts).toLocaleDateString('ar-u-nu-latn', {weekday:'long', day:'numeric', month:'long'});
   }
 
+  const mir = OFF.mirror('workdays', {
+    ser: () => JSON.stringify(workDays),
+    restore: (str) => { const a = JSON.parse(str); workDays.length = 0; a.forEach(x => workDays.push(x)); },
+    isDirty: (str) => str !== lastSnap,
+    isCloud: () => cloudReady
+  });
+
   async function syncNow(){
     if(!cloudReady || busy) return;
     const snap = JSON.stringify(workDays);
@@ -4113,7 +4585,7 @@
       failedOnce = false;
     }catch(e){
       console.error('فشل حفظ الفواتير وأيام العمل:', e);
-      if(!failedOnce){ showToast('⚠️ ما انحفظت الفواتير: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
+      if(!failedOnce && navigator.onLine){ showToast('⚠️ ما انحفظت الفواتير: ' + (e.message || JSON.stringify(e))); failedOnce = true; }
     }
     busy = false;
   }
@@ -4200,7 +4672,7 @@
     }
   }
 
-  async function loadFromCloud(){
+  async function loadInner(){
     try{
       const r = await supabaseClient.from('app_data').select('*').eq('owner_id', CURRENT_UID).eq('key', KEY);
       if(r.error) throw r.error;
@@ -4209,23 +4681,33 @@
         const local = workDays.slice();              // أي شي انعمل قبل ما يخلص التحميل
         workDays.length = 0;
         cloud.forEach(x => workDays.push(x));
-        local.forEach(x => workDays.push(x));
+        if(!mir.wasFromMirror()) local.forEach(x => workDays.push(x));
         lastSnap = JSON.stringify(cloud);
       }
       cloudReady = true;
+      mir.overlay();
       try{ updateHomeSummaries(); }catch(e){}
       showToast(cloud ? '☁️ تم تحميل الفواتير وأيام العمل' : '☁️ جاهز لحفظ الفواتير');
       checkOpenDay();
       await syncNow();
     }catch(e){
       console.error('فشل تحميل الفواتير وأيام العمل:', e);
-      showToast('⚠️ ما قدرت أحمّل الفواتير من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
+      if(mir.restoreFallback()){ try{ updateHomeSummaries(); }catch(e2){} checkOpenDay(); }
+      else showToast('⚠️ ما قدرت أحمّل الفواتير من قاعدة البيانات: ' + (e.message || JSON.stringify(e)));
     }
   }
 
-  setInterval(syncNow, 2500);
+  let loading = false, retryT = null;
+  async function loadFromCloud(){
+    if(loading) return; loading = true;
+    try{ await loadInner(); }finally{ loading = false; }
+    if(!cloudReady){ clearTimeout(retryT); retryT = setTimeout(loadFromCloud, 15000); }
+  }
+  window.addEventListener('online', () => { if(!cloudReady) loadFromCloud(); });
+  setInterval(() => { mir.tick(); syncNow(); }, 2500);
+  window.addEventListener('pagehide', () => mir.tick());
   document.addEventListener('visibilitychange', () => {
-    if(document.hidden){ syncNow(); }
+    if(document.hidden){ mir.tick(); syncNow(); }
     else if(cloudReady){ checkOpenDay(); }
   });
   onUserReady(loadFromCloud);
@@ -4361,7 +4843,14 @@
     try{ userContact = profile.phone || ''; }catch(e){}
   }
 
-  function showPending(){
+  function showPending(st){
+    try{
+      const exp = !!(st && st.paid_until);
+      document.getElementById('pendingTitle').textContent = exp ? 'انتهى اشتراكك' : 'انتهت فترة التجربة المجانية';
+      document.getElementById('pendingText').textContent = exp
+        ? 'جدّد اشتراكك لمتابعة استخدام التطبيق: اختر المدة وادفع، ثم ابعت لنا صورة الدفع على واتساب وبنفعّل حسابك. بياناتك محفوظة وما رح تضيع.'
+        : 'لمتابعة استخدام التطبيق اشترك بالطريقة المناسبة لك: اختر المدة وادفع، ثم ابعت لنا صورة الدفع على واتساب وبنفعّل حسابك. بياناتك محفوظة وما رح تضيع.';
+    }catch(e){}
     ['authLoginView','authSignupView','authMsg'].forEach(id => document.getElementById(id).style.display = 'none');
     document.querySelector('.auth-tabs').style.display = 'none';
     document.getElementById('authPendingView').style.display = 'block';
@@ -4372,6 +4861,9 @@
   // بيرجع true إذا دخل التاجر التطبيق، وfalse إذا انتهت تجربته وما تفعّل
   async function enterApp(user){
     window.MY_UID = user.id;
+    const cached = OFF.getIdentity();
+    const cachedOk = !!(cached && cached.id === user.id && OFF.fresh(cached));
+    let fromCache = false;
     let profileOk = true;
     try{
       const profile = await ensureProfile(user);
@@ -4379,6 +4871,7 @@
     }catch(e){
       profileOk = false;
       console.error('تعذّر تحميل الملف الشخصي:', e);
+      if(cachedOk && cached.profile){ showAccount(user, cached.profile); profileOk = true; }
     }
     let st = { admin:false, active:false, access:false };
     try{
@@ -4387,20 +4880,29 @@
       st = r.data || st;
     }catch(e){
       console.error('تعذّر فحص حالة الحساب:', e);
-      showToast('ما قدرنا نتحقق من حالة حسابك، تأكد من الإنترنت وجرب "تحديث الحالة"');
+      if(cachedOk && cached.st && (cached.st.admin || cached.st.access) && !(cached.st.paid_until && new Date(cached.st.paid_until).getTime() < Date.now()) && OFF.isNetErr(e)){
+        st = cached.st; fromCache = true;
+        showToast('📴 فتحنا التطبيق بدون إنترنت، شغلك محفوظ وبيرفع لما يرجع النت');
+      } else {
+        showToast('ما قدرنا نتحقق من حالة حسابك، تأكد من الإنترنت وجرب "تحديث الحالة"');
+      }
+    }
+    if(!fromCache && (st.admin || st.access)){
+      OFF.setIdentity({ id:user.id, user:{ id:user.id, email:user.email }, profile: currentProfile, st: st });
     }
     window.__lastStatus = st;
     IS_ADMIN = !!st.admin;
-    FEATURES = { voice: !!st.voice_allowed, chat: !!st.chat_allowed };
+    FEATURES = { voice: false, chat: false };   // الصوت والمدير المالي متوقفين حالياً
     applyFeatures();
     if(st.admin || st.access){
       __setUser(user.id);           // هون بيبدأ تحميل بيانات التاجر
       gate.classList.remove('show');
-      if(IS_ADMIN) window.renderAdminRoom();
+      document.body.classList.add('authed');
+      if(IS_ADMIN && !fromCache) window.renderAdminRoom();
       if(typeof window.onEnteredApp === 'function') window.onEnteredApp(st);
       return true;
     }
-    showPending();
+    showPending(st);
     return false;
   }
 
@@ -4691,15 +5193,51 @@
     list.textContent = 'جاري التحميل...';
     const r = await supabaseClient.rpc('admin_list_merchants');
     if(r.error){ list.textContent = 'ما قدرت أحمّل قائمة التجار: ' + r.error.message; return; }
-    const trialDays = Number(((window.APP_SETTINGS || {}).trial_days) ?? 7);
-    const left = m => Math.ceil((new Date(m.created_at).getTime() + trialDays * 86400000 - Date.now()) / 86400000);
-    const rank = m => m.is_admin ? 3 : (m.is_active ? 2 : (left(m) > 0 ? 1 : 0));   // منتهية التجربة أولاً
-    const rows = (r.data || []).slice().sort((a, b) => rank(a) - rank(b));
+    const trialDays = Number(((window.APP_SETTINGS || {}).trial_days) ?? 15);
+    // تاريخ الانتهاء وآخر ظهور (من دالة admin_merchant_extra)
+    const ex = await supabaseClient.rpc('admin_merchant_extra');
+    const extra = {};
+    if(!ex.error) (ex.data || []).forEach(x => { extra[x.id] = x; });
+    const sqlMissing = !!ex.error;
+    (r.data || []).forEach(m => { const e = extra[m.id]; m.paid_until = e ? e.paid_until : null; m.last_seen = e ? e.last_seen : null; });
+    const DAY = 86400000;
+    const trialLeft = m => Math.ceil((new Date(m.created_at).getTime() + trialDays * DAY - Date.now()) / DAY);
+    // حالة كل تاجر: kind = admin | paid | paid_old | trial | expired ، left = الأيام المتبقية
+    const info = m => {
+      if(m.is_admin) return { kind:'admin', left:0 };
+      if(m.paid_until){
+        const l = Math.ceil((new Date(m.paid_until).getTime() - Date.now()) / DAY);
+        return l > 0 ? { kind:'paid', left:l } : { kind:'expired', left:l, wasPaid:true };
+      }
+      if(m.is_active) return { kind:'paid_old', left:null };
+      const l = trialLeft(m);
+      return l > 0 ? { kind:'trial', left:l } : { kind:'expired', left:l, wasPaid:false };
+    };
+    const rank = m => { const i = info(m);
+      if(i.kind === 'admin') return 5;
+      if(i.kind === 'expired') return 0;
+      if((i.kind === 'paid' || i.kind === 'trial') && i.left <= 3) return 1;
+      if(i.kind === 'trial') return 2;
+      return 3; };
+    const rows = (r.data || []).slice().sort((a, b) => rank(a) - rank(b) || (info(a).left || 0) - (info(b).left || 0));
     const merchants = rows.filter(m => !m.is_admin);
     const expired = merchants.filter(m => rank(m) === 0).length;
-    const trial = merchants.filter(m => rank(m) === 1).length;
-    const paid = merchants.filter(m => rank(m) === 2).length;
-    sum.textContent = 'التجار: ' + merchants.length + ' — مفعّلين: ' + paid + ' — بتجربة: ' + trial + ' — انتهت تجربتهم: ' + expired;
+    const soon = merchants.filter(m => rank(m) === 1).length;
+    const trial = merchants.filter(m => info(m).kind === 'trial').length;
+    const paid = merchants.filter(m => info(m).kind === 'paid' || info(m).kind === 'paid_old').length;
+    sum.textContent = 'التجار: ' + merchants.length + ' — مشتركين: ' + paid + ' — بتجربة: ' + trial + ' — منتهية: ' + expired + ' — قريبة الانتهاء: ' + soon;
+    if(sqlMissing) sum.textContent += '\n⚠️ شغّل ملف subscription.sql بـ Supabase ليظهر تاريخ الانتهاء وآخر ظهور';
+    sum.style.whiteSpace = 'pre-line';
+    const ago = d => {
+      if(!d) return 'لم يُسجَّل بعد';
+      const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+      if(mins < 2) return 'الآن';
+      if(mins < 60) return 'قبل ' + mins + ' دقيقة';
+      const hrs = Math.floor(mins / 60);
+      if(hrs < 24) return 'قبل ' + (hrs === 1 ? 'ساعة' : hrs === 2 ? 'ساعتين' : hrs + (hrs <= 10 ? ' ساعات' : ' ساعة'));
+      const dd = Math.floor(hrs / 24);
+      return 'قبل ' + daysWord(dd);
+    };
     list.textContent = '';
     rows.forEach(m => {
       const card = document.createElement('div');
@@ -4707,14 +5245,17 @@
       const top = document.createElement('div');
       top.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;';
       const nm = document.createElement('b'); nm.textContent = (m.merchant_no ? '#' + m.merchant_no + ' — ' : '') + (m.full_name || '(بدون اسم)');
+      nm.style.fontSize = '15px';
       const st = document.createElement('span');
+      const I = info(m);
       let stTxt, stColor;
-      if(m.is_admin){ stTxt = '🛠️ مدير'; stColor = 'var(--ink-soft)'; }
-      else if(m.is_active){ stTxt = '✅ مفعّل'; stColor = 'var(--emerald-dark)'; }
-      else if(left(m) > 0){ stTxt = '🎁 تجربة - باقي ' + daysWord(left(m)); stColor = '#8a6d00'; }
-      else { stTxt = '⛔ انتهت التجربة'; stColor = '#922B21'; }
+      if(I.kind === 'admin'){ stTxt = '🛠️ مدير'; stColor = 'var(--ink-soft)'; }
+      else if(I.kind === 'paid'){ stTxt = '✅ مشترك — باقي ' + daysWord(I.left); stColor = I.left <= 3 ? '#B9770E' : 'var(--emerald-dark)'; }
+      else if(I.kind === 'paid_old'){ stTxt = '✅ مفعّل'; stColor = 'var(--emerald-dark)'; }
+      else if(I.kind === 'trial'){ stTxt = '🎁 تجربة — باقي ' + daysWord(I.left); stColor = I.left <= 3 ? '#B9770E' : '#8a6d00'; }
+      else { stTxt = I.wasPaid ? '⛔ انتهى الاشتراك' : '⛔ انتهت التجربة'; stColor = '#922B21'; }
       st.textContent = stTxt;
-      st.style.cssText = 'font-size:11.5px; font-weight:800; color:' + stColor;
+      st.style.cssText = 'font-size:12px; font-weight:800; text-align:left; color:' + stColor;
       top.appendChild(nm); top.appendChild(st); card.appendChild(top);
       const line = (txt, ltr) => {
         const d = document.createElement('div');
@@ -4724,7 +5265,13 @@
       };
       if(m.shop_name) line('🏪 ' + m.shop_name);
       if(m.shop_location) line('📍 ' + m.shop_location);
-      line(m.email || '', true);
+      const em = line('✉️ ' + (m.email || '-'), true); em.style.fontWeight = '700'; em.style.color = 'var(--ink)';
+      if(!m.is_admin){
+        const since = Math.max(0, Math.floor((Date.now() - new Date(m.created_at).getTime()) / DAY));
+        line('📅 مسجّل منذ ' + (since === 0 ? 'اليوم' : daysWord(since)));
+        line('👁️ آخر ظهور: ' + ago(m.last_seen));
+        if(m.paid_until) line((I.kind === 'paid' ? '🗓️ ينتهي الاشتراك: ' : '🗓️ انتهى الاشتراك: ') + new Date(m.paid_until).toLocaleDateString('en-GB'));
+      }
       const ph = document.createElement('div');
       ph.style.cssText = 'display:flex; align-items:center; gap:10px; margin:4px 0 8px;';
       const pt = document.createElement('span'); pt.textContent = m.phone || '-'; pt.style.cssText = 'font-size:12.5px; font-weight:700; direction:ltr;';
@@ -4750,24 +5297,49 @@
         };
         row.appendChild(lb); row.appendChild(sel); return row;
       };
-      card.appendChild(ov('🎙️ الصوت', 'voice', m.voice_override));
-      card.appendChild(ov('💬 الشات', 'chat', m.chat_override));
 
-      const btn = document.createElement('button');
-      btn.textContent = m.is_active ? 'إلغاء التفعيل' : 'تفعيل الحساب (بعد الدفع)';
-      btn.style.cssText = (m.is_active
-        ? 'width:100%; padding:9px; background:#fff; color:#922B21; border:1.5px solid #922B21; border-radius:10px; font-family:inherit; font-weight:700; font-size:12.5px;'
-        : 'width:100%; padding:9px; background:var(--emerald); color:#fff; border:none; border-radius:10px; font-family:inherit; font-weight:700; font-size:12.5px;') + ' margin-top:4px;';
-      btn.onclick = async () => {
-        const q = m.is_active ? ('إلغاء تفعيل حساب ' + (m.full_name || '') + '؟') : ('تفعيل حساب ' + (m.full_name || '') + '؟');
-        if(!confirm(q)) return;
-        btn.disabled = true;
-        const u = await supabaseClient.rpc('admin_set_active', { target: m.id, active: !m.is_active });
-        if(u.error){ showToast('صار خطأ: ' + u.error.message); btn.disabled = false; return; }
-        showToast(m.is_active ? 'تم إلغاء التفعيل' : 'تم التفعيل ✅');
-        window.renderAdminRoom();
-      };
-      card.appendChild(btn);
+      const h = (tag, css, text) => { const e = document.createElement(tag); if(css) e.style.cssText = css; if(text != null) e.textContent = text; return e; };
+      const mkBtn = (txt, css) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.style.cssText = css; return b; };
+      const G = 'padding:9px 4px; border-radius:10px; font-family:inherit; font-weight:700; font-size:12.5px;';
+      // تذكير واتساب للمنتهي أو القريب من الانتهاء
+      if(rank(m) <= 1){
+        const nmx = m.full_name || '';
+        const msg = I.kind === 'expired'
+          ? ('مرحباً ' + nmx + '، انتهت ' + (I.wasPaid ? 'مدة اشتراكك' : 'تجربتك المجانية') + ' في "المحاسب الذكي" وتم إيقاف حسابك. لتجديد الاشتراك ادفع عبر شام كاش أو USDT (التفاصيل داخل التطبيق ← الإعدادات ← التسعير) وابعت لنا صورة الدفع هون. بياناتك محفوظة ✅')
+          : ('مرحباً ' + nmx + '، ' + (I.kind === 'paid' ? 'اشتراكك' : 'تجربتك المجانية') + ' في "المحاسب الذكي" ' + (I.left <= 0 ? 'ينتهي اليوم' : 'ينتهي بعد ' + daysWord(I.left)) + '. للتجديد ادفع عبر شام كاش أو USDT (التفاصيل داخل التطبيق ← الإعدادات ← التسعير) وابعت لنا صورة الدفع هون.');
+        const rem = document.createElement('a');
+        rem.textContent = '📲 تذكير بالدفع على واتساب';
+        rem.href = waLink(m.phone) + '?text=' + encodeURIComponent(msg); rem.target = '_blank'; rem.rel = 'noopener';
+        rem.style.cssText = 'display:block; text-align:center; text-decoration:none; background:#FFF6DC; color:#6B4E00; border:1.5px solid #E9C46A; margin-top:4px; ' + G;
+        card.appendChild(rem);
+      }
+      card.appendChild(h('div', 'font-size:12px; font-weight:800; margin:8px 0 4px;', (I.kind === 'paid' ? 'تجديد الاشتراك:' : 'تفعيل الحساب بعد الدفع:')));
+      const mrow = h('div', 'display:flex; gap:6px;');
+      [1, 3, 6].forEach(n => {
+        const b = mkBtn((n === 1 ? 'شهر' : n + ' أشهر'), 'flex:1; background:var(--emerald); color:#fff; border:none; ' + G);
+        b.onclick = async () => {
+          if(!confirm((I.kind === 'paid' ? 'تجديد' : 'تفعيل') + ' حساب ' + (m.full_name || '') + ' لمدة ' + (n === 1 ? 'شهر' : n + ' أشهر') + '؟')) return;
+          mrow.querySelectorAll('button').forEach(x => x.disabled = true);
+          const u = await supabaseClient.rpc('admin_set_active', { target: m.id, active: true, months: n });
+          if(u.error){ showToast('صار خطأ: ' + u.error.message); mrow.querySelectorAll('button').forEach(x => x.disabled = false); return; }
+          showToast('تم التفعيل ✅');
+          window.renderAdminRoom();
+        };
+        mrow.appendChild(b);
+      });
+      card.appendChild(mrow);
+      if(I.kind === 'paid' || I.kind === 'paid_old'){
+        const off = mkBtn('إلغاء التفعيل', 'width:100%; background:#fff; color:#922B21; border:1.5px solid #922B21; margin-top:6px; ' + G);
+        off.onclick = async () => {
+          if(!confirm('إلغاء تفعيل حساب ' + (m.full_name || '') + '؟ رح يتقفل فوراً.')) return;
+          off.disabled = true;
+          const u = await supabaseClient.rpc('admin_set_active', { target: m.id, active: false });
+          if(u.error){ showToast('صار خطأ: ' + u.error.message); off.disabled = false; return; }
+          showToast('تم إلغاء التفعيل');
+          window.renderAdminRoom();
+        };
+        card.appendChild(off);
+      }
       const bk = document.createElement('button');
       bk.textContent = '🕘 نسخ التاجر (استرجاع)';
       bk.style.cssText = 'width:100%; padding:9px; background:#fff; color:var(--ink); border:1.5px solid var(--silver-dark); border-radius:10px; font-family:inherit; font-weight:700; font-size:12.5px; margin-top:6px;';
@@ -4858,7 +5430,9 @@
   };
 
   window.authLogout = async function(){
+    if(OFF.anyDirty() && !confirm('عندك تغييرات ما انرفعت للإنترنت لسا. إذا خرجت هلق رح تضيع. تخرج؟')) return;
     try{ await supabaseClient.auth.signOut(); }catch(e){ console.error(e); }
+    OFF.wipe();
     location.reload();   // بيمسح أي بيانات محمّلة بالذاكرة من الحساب السابق
   };
 
@@ -4867,26 +5441,51 @@
     try{
       const r = await supabaseClient.rpc('get_my_status');
       if(r.error || !r.data) return;
-      if(!r.data.admin && !r.data.access){ location.reload(); return; }
-      FEATURES = { voice: !!r.data.voice_allowed, chat: !!r.data.chat_allowed };
+      if(!r.data.admin && !r.data.access){ OFF.setIdentity(Object.assign({}, OFF.getIdentity(), {st:r.data})); location.reload(); return; }
+      OFF.setIdentity(Object.assign({}, OFF.getIdentity(), {st:r.data}));
+      FEATURES = { voice: false, chat: false };   // الصوت والمدير المالي متوقفين حالياً
       applyFeatures();
       if(typeof window.onEnteredApp === 'function') window.onEnteredApp(r.data);
     }catch(e){}
   });
 
+  // شاشة مقفولة: التطبيق ما بيفتح أبداً بدون خدمة الدخول، ولا بيعرض بيانات تجريبية
+  function showConnFail(){
+    ['authLoginView','authSignupView','authForgotView','authPendingView','authMsg'].forEach(id => { const e = document.getElementById(id); if(e) e.style.display = 'none'; });
+    const tabs = document.querySelector('.auth-tabs'); if(tabs) tabs.style.display = 'none';
+    const mainCard = gate.querySelector('.login-card:not(#connFailBox)'); if(mainCard) mainCard.style.display = 'none';
+    let box = document.getElementById('connFailBox');
+    if(!box){
+      box = document.createElement('div'); box.id = 'connFailBox'; box.className = 'login-card'; box.style.textAlign = 'center';
+      box.innerHTML = '<div style="font-size:34px; margin-bottom:8px;">📡</div>' +
+        '<div style="font-weight:900; font-size:15px; margin-bottom:6px;">تعذّر الاتصال بالخدمة</div>' +
+        '<div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; line-height:1.7;">تأكد أن الإنترنت شغال ثم اضغط إعادة المحاولة</div>' +
+        '<button type="button" class="confirm-btn" onclick="location.reload()">إعادة المحاولة</button>';
+      const foot = gate.querySelector('.gate-footnote'); gate.insertBefore(box, foot);
+    }
+    gate.classList.add('show');
+  }
+  window.showConnFail = showConnFail;
+
   // عند فتح التطبيق: إذا في جلسة محفوظة بيدخل مباشرة بدون ما يطلب كلمة السر من جديد
   (async function init(){
     if(typeof supabaseClient === 'undefined' || !supabaseClient){
-      msg('ما قدرنا نتصل بالخدمة، تأكد من الإنترنت وحدّث الصفحة', 'err');
+      showConnFail();
       return;
     }
+    let session = null, err = null;
     try{
       const r = await supabaseClient.auth.getSession();
-      if(r.error) throw r.error;
-      if(r.data.session){ await enterApp(r.data.session.user); }
-    }catch(e){
-      console.error('فحص الجلسة فشل:', e);
+      err = r.error; session = r.data && r.data.session;
+    }catch(e){ err = e; }
+    if(session){ await enterApp(session.user); return; }
+    // ما في جلسة: إما مسجّل خروج فعلاً، أو الإنترنت مقطوع والتوكن ما قدر يتجدد
+    const id = OFF.getIdentity();
+    if(id && OFF.fresh(id) && id.user && OFF.hasMirror(id.user.id)){
+      const offline = !navigator.onLine || OFF.isNetErr(err) || await OFF.probeOffline();
+      if(offline){ await enterApp(id.user); return; }
     }
+    if(err) console.error('فحص الجلسة فشل:', err);
   })();
 })();
 </script>
@@ -4986,22 +5585,101 @@
     return box;
   }
 
+  let PAY_MONTHS = 1;
+  function priceUsd(){ const v = Number(SETTINGS.price_usd); return (Number.isFinite(v) && v > 0) ? v : 3; }
+  function monthsWord(n){ return n === 1 ? 'شهر واحد' : (n === 3 ? '3 أشهر' : '6 أشهر'); }
+  function proofLink(method){
+    const total = priceUsd() * PAY_MONTHS;
+    const nm = (document.getElementById('myName') || {}).textContent || '';
+    const em = (document.getElementById('myEmail') || {}).textContent || '';
+    const msg = 'مرحباً، دفعت اشتراك "المحاسب الذكي"\nالاسم: ' + nm + '\nالإيميل: ' + em +
+      '\nالمدة: ' + monthsWord(PAY_MONTHS) + '\nالمبلغ: ' + total + ' دولار\nطريقة الدفع: ' + method +
+      '\nأرفقت صورة الدفع، يرجى تفعيل حسابي.';
+    return waLinkFrom(SETTINGS.contact_phone) + '?text=' + encodeURIComponent(msg);
+  }
+  function usdtBlock(){
+    const box = h('div', 'border:1.5px solid var(--silver-dark); border-radius:12px; padding:12px; margin-bottom:12px; background:#fff;');
+    box.appendChild(h('div', 'font-weight:800; font-size:14px; margin-bottom:8px;', 'USDT (دولار رقمي)'));
+    const net = SETTINGS.usdt_network || 'TRC20 (Tron)';
+    box.appendChild(h('div', 'font-size:13px; font-weight:800; margin-bottom:8px;', 'الشبكة: ' + net));
+    const row = h('div', 'display:flex; align-items:center; justify-content:space-between; gap:8px;');
+    row.appendChild(h('span', 'font-weight:800; font-size:13px; direction:ltr; word-break:break-all; text-align:left;', SETTINGS.usdt_address));
+    const cp = h('button', BTN_LINE + ' flex-shrink:0; padding:6px 12px;', 'نسخ');
+    cp.type = 'button'; cp.onclick = () => copyText(SETTINGS.usdt_address);
+    row.appendChild(cp); box.appendChild(row);
+    if(isImg(SETTINGS.usdt_qr)){
+      const img = document.createElement('img');
+      img.src = SETTINGS.usdt_qr; img.alt = 'باركود USDT';
+      img.style.cssText = 'display:block; width:100%; max-width:230px; margin:10px auto 0; border-radius:8px;';
+      box.appendChild(img);
+    }
+    box.appendChild(h('div', 'margin-top:10px; padding:10px; border-radius:10px; background:#FDEDEC; border:1.5px solid #922B21; color:#922B21; font-size:12.5px; font-weight:800; line-height:1.9;',
+      '⚠️ تحذير: أرسل فقط عبر شبكة ' + net + '. الإرسال عبر أي شبكة أخرى يؤدي إلى ضياع المبلغ نهائياً ولا يمكن استرجاعه.'));
+    return box;
+  }
+
   function renderPricingNow(container){
     if(!container) return;
     container.textContent = '';
+    const price = priceUsd();
+    const st = window.__lastStatus || {};
     const top = h('div', 'border:1.5px solid var(--emerald); border-radius:12px; padding:12px; margin-bottom:12px; background:#fff;');
     top.appendChild(h('div', 'font-weight:800; font-size:14px; margin-bottom:6px;', '💳 اشتراك التطبيق'));
-    top.appendChild(h('div', 'font-size:18px; font-weight:800; color:var(--emerald-dark);', SETTINGS.price_text || 'السعر سيتم إضافته قريباً'));
-    const td = Number(SETTINGS.trial_days ?? 7), vd = Number(SETTINGS.voice_trial_days ?? 2);
-    top.appendChild(h('div', 'font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.8;',
-      '🎁 تجربة مجانية ' + daysWord(td) + '، والصوت والشات مجاناً لأول ' + daysWord(vd) + ' فقط.'));
+    top.appendChild(h('div', 'font-size:18px; font-weight:800; color:var(--emerald-dark);', SETTINGS.price_text || (price + ' دولار شهرياً')));
+    if(st.paid_until && !st.admin){
+      const dl = Math.ceil((new Date(st.paid_until).getTime() - Date.now()) / 86400000);
+      top.appendChild(h('div', 'font-size:12.5px; font-weight:800; margin-top:6px; color:' + (dl > 0 ? 'var(--emerald-dark)' : '#922B21') + ';',
+        dl > 0 ? ('✅ اشتراكك ساري حتى ' + new Date(st.paid_until).toLocaleDateString('en-GB') + ' (باقي ' + daysWord(dl) + ')') : '⛔ انتهى اشتراكك'));
+    } else {
+      const td = Number(SETTINGS.trial_days ?? 15);
+      top.appendChild(h('div', 'font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.8;',
+        '🎁 تجربة مجانية للتطبيق كامل لمدة ' + daysWord(td) + '.'));
+    }
     container.appendChild(top);
+
+    // اختيار المدة
+    const pick = h('div', 'border:1.5px solid var(--silver-dark); border-radius:12px; padding:12px; margin-bottom:12px; background:#fff;');
+    pick.appendChild(h('div', 'font-weight:800; font-size:13.5px; margin-bottom:8px;', 'اختر مدة الاشتراك'));
+    const rowP = h('div', 'display:flex; gap:8px;');
+    [1, 3, 6].forEach(n => {
+      const on = PAY_MONTHS === n;
+      const b = h('button', 'flex:1; padding:10px 4px; border-radius:10px; font-family:inherit; font-weight:800; font-size:12.5px; line-height:1.7; border:1.5px solid var(--emerald); ' +
+        (on ? 'background:var(--emerald); color:#fff;' : 'background:#fff; color:var(--emerald-dark);'));
+      b.type = 'button';
+      b.appendChild(document.createTextNode(n === 1 ? 'شهر' : n + ' أشهر'));
+      b.appendChild(document.createElement('br'));
+      b.appendChild(document.createTextNode((price * n) + '$'));
+      b.onclick = () => { PAY_MONTHS = n; renderPricingNow(container); };
+      rowP.appendChild(b);
+    });
+    pick.appendChild(rowP);
+    pick.appendChild(h('div', 'font-size:14px; font-weight:800; margin-top:10px; text-align:center;', 'المبلغ المطلوب: ' + (price * PAY_MONTHS) + ' دولار'));
+    container.appendChild(pick);
+
     container.appendChild(payBlock('شام كاش', SETTINGS.shamcash_number, SETTINGS.shamcash_qr));
+    const hasUsdt = !!(SETTINGS.usdt_address && String(SETTINGS.usdt_address).trim());
+    if(hasUsdt) container.appendChild(usdtBlock());
     (Array.isArray(SETTINGS.wallets) ? SETTINGS.wallets : []).forEach(w => {
+      if(hasUsdt && /usdt/i.test(w.name || '')) return;
       container.appendChild(payBlock(w.name || 'محفظة إلكترونية', w.number, w.qr));
     });
-    container.appendChild(h('div', 'font-size:12px; color:var(--ink-soft); line-height:1.9; padding:2px 4px;',
-      'بعد الدفع ابعتلنا إشعار الدفع من "تواصل معنا"، وبنفعّل حسابك بأقرب وقت. التفعيل يدوي.'));
+
+    // إرسال إثبات الدفع على واتساب
+    const proof = h('div', 'border:1.5px solid var(--emerald); border-radius:12px; padding:12px; margin-bottom:12px; background:#F1FAF5;');
+    proof.appendChild(h('div', 'font-weight:800; font-size:13.5px; margin-bottom:6px;', '📤 بعد الدفع'));
+    proof.appendChild(h('div', 'font-size:12px; color:var(--ink-soft); line-height:1.9; margin-bottom:8px;',
+      'اضغط الزر المناسب، بيفتح واتساب برسالة جاهزة، وأرفق فيها صورة الدفع. بنفعّل حسابك بأقرب وقت.'));
+    if(SETTINGS.contact_phone){
+      const mk = (txt, method) => {
+        const a = h('a', BTN_MAIN + ' display:block; text-align:center; text-decoration:none; margin-bottom:8px;', txt);
+        a.href = proofLink(method); a.target = '_blank'; a.rel = 'noopener'; return a;
+      };
+      proof.appendChild(mk('دفعت عبر شام كاش — أرسل الإثبات', 'شام كاش'));
+      if(hasUsdt) proof.appendChild(mk('دفعت عبر USDT — أرسل الإثبات', 'USDT — شبكة ' + (SETTINGS.usdt_network || 'TRC20')));
+    } else {
+      proof.appendChild(h('div', 'font-size:12px; color:var(--ink-soft);', 'رقم الواتساب سيتم إضافته قريباً'));
+    }
+    container.appendChild(proof);
   }
   window.renderPricingInto = function(container){
     renderPricingNow(container);
@@ -5169,16 +5847,32 @@
   function updateTrialBanner(st){
     const b = document.getElementById('trialBanner');
     if(!b) return;
-    if(!st || st.admin || st.active){ b.style.display = 'none'; return; }
+    if(!st || st.admin){ b.style.display = 'none'; return; }
+    b.onclick = null; b.style.cursor = '';
+    const goPay = () => { try{ goTo('settings'); setSettingsSubView('pricing'); }catch(e){} };
+    if(st.paid_until){
+      const dl = Math.ceil((new Date(st.paid_until).getTime() - Date.now()) / 86400000);
+      if(dl <= 3 && dl >= 0){
+        b.textContent = '⚠️ ينتهي اشتراكك ' + (dl <= 0 ? 'اليوم' : 'بعد ' + daysWord(dl)) + ' — اضغط هنا للتجديد';
+        b.style.display = 'block'; b.style.cursor = 'pointer'; b.onclick = goPay;
+      } else b.style.display = 'none';
+      return;
+    }
+    if(st.active){ b.style.display = 'none'; return; }
     const now = Date.now();
     const dl = Math.max(0, Math.ceil((new Date(st.trial_ends_at).getTime() - now) / 86400000));
-    const vl = Math.ceil((new Date(st.voice_trial_ends_at).getTime() - now) / 86400000);
-    let t = '🎁 فترة تجربة مجانية للتطبيق — باقي ' + daysWord(dl);
-    if(st.voice_allowed && vl > 0) t += '\n🎙️ الصوت والشات مجاناً للتجربة — باقي ' + daysWord(vl);
-    else if(!st.voice_allowed) t += '\n🔒 الصوت والشات متاحين مع الاشتراك';
-    b.textContent = t;
+    b.textContent = '🎁 فترة تجربة مجانية للتطبيق كامل — باقي ' + daysWord(dl) + (dl <= 3 ? ' — اضغط هنا للاشتراك' : '');
     b.style.display = 'block';
+    if(dl <= 3){ b.style.cursor = 'pointer'; b.onclick = goPay; }
   }
+  // تسجيل آخر ظهور عند الرجوع للتطبيق (مرة كل 10 دقايق على الأكثر)
+  let lastTouch = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState !== 'visible' || !window.MY_UID) return;
+    if(Date.now() - lastTouch < 600000) return;
+    lastTouch = Date.now();
+    try{ supabaseClient.rpc('touch_seen').then(() => {}, () => {}); }catch(e){}
+  });
   let notified = false;
   window.onEnteredApp = async function(st){
     updateTrialBanner(st);
@@ -5244,7 +5938,7 @@
     await loadSettings();
     form.textContent = '';
     const inputs = {};
-    const state = { shamQr: isImg(SETTINGS.shamcash_qr) ? SETTINGS.shamcash_qr : '', wallets: (Array.isArray(SETTINGS.wallets) ? SETTINGS.wallets : []).map(w => ({ name:w.name || '', number:w.number || '', qr:w.qr || '' })) };
+    const state = { shamQr: isImg(SETTINGS.shamcash_qr) ? SETTINGS.shamcash_qr : '', usdtQr: isImg(SETTINGS.usdt_qr) ? SETTINGS.usdt_qr : '', wallets: (Array.isArray(SETTINGS.wallets) ? SETTINGS.wallets : []).map(w => ({ name:w.name || '', number:w.number || '', qr:w.qr || '' })) };
     const section = t => form.appendChild(h('div', 'font-weight:800; margin:16px 0 8px; color:var(--emerald-dark); font-size:13.5px;', t));
     const field = (label, key, type, hint) => {
       const w = h('div', 'margin-bottom:10px;');
@@ -5263,20 +5957,22 @@
     };
 
     section('🎁 التجربة المجانية');
-    field('مدة تجربة التطبيق (بالأيام)', 'trial_days', 'number');
-    field('مدة تجربة الصوت والشات (بالأيام)', 'voice_trial_days', 'number');
-    section('🎙️ المفاتيح العامة (لكل التجار)');
-    toggle('الصوت شغّال للجميع', 'voice_global');
-    toggle('الشات (المدير المالي) شغّال للجميع', 'chat_global');
-    form.appendChild(h('div', 'font-size:11px; color:var(--ink-soft); margin:-4px 0 6px;', 'مفتاح كل تاجر (تلقائي / مفتوح / مغلق) بيغلب المفتاح العام، وبتغيّره من بطاقة التاجر فوق.'));
+    field('مدة التجربة المجانية للتطبيق كامل (بالأيام)', 'trial_days', 'number');
     section('💳 السعر والتواصل');
-    field('السعر (يظهر للتجار)', 'price_text', 'text');
+    field('السعر الشهري بالدولار (رقم فقط، يُضرب بعدد الأشهر)', 'price_usd', 'number', 'مثال: 3');
+    field('نص السعر (يظهر للتجار)', 'price_text', 'text', 'مثال: 3 دولار شهرياً');
     field('رقم واتساب للتواصل', 'contact_phone', 'tel', 'مثال: 09XXXXXXXX');
     section('شام كاش');
     field('رقم/كود شام كاش', 'shamcash_number', 'text');
     form.appendChild(imageControl(state.shamQr, d => { state.shamQr = d; }));
 
-    section('المحافظ الإلكترونية');
+    section('USDT (دولار رقمي)');
+    field('عنوان محفظة USDT', 'usdt_address', 'text');
+    const net = field('اسم الشبكة', 'usdt_network', 'text', 'مثال: TRC20 (Tron). بيظهر للتاجر مع تحذير ضياع المبلغ إذا استخدم شبكة ثانية');
+    if(!net.value) net.value = 'TRC20 (Tron)';
+    form.appendChild(imageControl(state.usdtQr, d => { state.usdtQr = d; }));
+
+    section('محافظ إلكترونية أخرى');
     const walletsBox = h('div'); form.appendChild(walletsBox);
     function drawWallets(){
       walletsBox.textContent = '';
@@ -5307,20 +6003,21 @@
     save.type = 'button';
     save.onclick = async () => {
       const num = k => { const v = Number(inputs[k].value); return (inputs[k].value !== '' && Number.isFinite(v) && v >= 0) ? Math.floor(v) : null; };
-      const trial = num('trial_days'), vtrial = num('voice_trial_days');
-      if(trial === null || vtrial === null){ showToast('أيام التجربة لازم تكون أرقام'); return; }
+      const trial = num('trial_days');
+      if(trial === null){ showToast('أيام التجربة لازم تكون أرقام'); return; }
       const phone = inputs.contact_phone.value.replace(/[\s\-]/g, '');
       if(phone && !/^\+?\d{9,15}$/.test(phone)){ showToast('رقم الواتساب لازم يكون أرقام بس'); return; }
       const now = new Date().toISOString();
       const rows = [
         { key:'trial_days', value: trial },
-        { key:'voice_trial_days', value: vtrial },
-        { key:'voice_global', value: inputs.voice_global.checked },
-        { key:'chat_global', value: inputs.chat_global.checked },
         { key:'price_text', value: inputs.price_text.value.trim() },
         { key:'contact_phone', value: phone },
         { key:'shamcash_number', value: inputs.shamcash_number.value.trim() },
         { key:'shamcash_qr', value: state.shamQr || '' },
+        { key:'price_usd', value: (Number(inputs.price_usd.value) > 0 ? Number(inputs.price_usd.value) : 3) },
+        { key:'usdt_address', value: inputs.usdt_address.value.trim() },
+        { key:'usdt_network', value: inputs.usdt_network.value.trim() || 'TRC20 (Tron)' },
+        { key:'usdt_qr', value: state.usdtQr || '' },
         { key:'wallets', value: state.wallets.filter(w => w.name.trim() || w.number.trim() || w.qr).map(w => ({ name:w.name.trim(), number:w.number.trim(), qr:w.qr || '' })) }
       ].map(r => Object.assign(r, { updated_at: now }));
       save.disabled = true;
@@ -5407,8 +6104,9 @@
         del.type = 'button';
         del.onclick = async () => {
           if(!confirm('حذف هالرسالة؟')) return;
-          const r = await supabaseClient.from('support_messages').delete().eq('id', first.id);
+          const r = await supabaseClient.from('support_messages').delete().eq('id', first.id).select('id');
           if(r.error){ showToast('صار خطأ: ' + r.error.message); return; }
+          if(!(r.data || []).length){ showToast('ما انحذفت، تأكد إنك شغّلت ملف subscription.sql'); return; }
           window.renderAdminInbox();
         };
         detail.appendChild(del);
@@ -5448,6 +6146,16 @@
       inp.onkeydown = e => { if(e.key === 'Enter') doSend(); };
       bar.appendChild(inp); bar.appendChild(send);
       detail.appendChild(bar);
+      const delc = h('button', 'margin-top:8px; padding:9px; width:100%; background:#fff; color:#922B21; border:1.5px solid #922B21; border-radius:10px; font-family:inherit; font-weight:700; font-size:12.5px;', '🗑️ حذف المحادثة كاملة');
+      delc.type = 'button';
+      delc.onclick = async () => {
+        if(!confirm('حذف كل رسائل هالمحادثة؟ ما بيمكن التراجع.')) return;
+        const r = await supabaseClient.from('support_messages').delete().eq('user_id', c.userId).select('id');
+        if(r.error){ showToast('صار خطأ: ' + r.error.message); return; }
+        if(!(r.data || []).length){ showToast('ما انحذفت، تأكد إنك شغّلت ملف subscription.sql'); return; }
+        window.renderAdminInbox();
+      };
+      detail.appendChild(delc);
     }
 
     head.onclick = () => {
@@ -5477,5 +6185,196 @@
 })();
 </script>
 
+
+<script>
+/* ===== خيار ألف/ليرة لكل خانات المبالغ: التاجر بيكتب 100 والتطبيق بيحسبها 100,000 خلف الكواليس ===== */
+(function(){
+  const IDS = ['discountAmount','miscSaleAmount','qaSaleAmount','dmgPrice','partialCash','u_total','u_unitcost','u_sale','weightPrice','weightAmount','newDebtorAmount','debtActionAmount','editItemPurchase','editItemSale','consumedAmount'];
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  // كل الأرقام بالتطبيق لاتينية (123): بنحوّل أي رقم عربي، وبنعرض الأرقام كنص عادي لأنو خانة (number) بتعرضها بأرقام المتصفح
+  function latin(s){ return String(s == null ? '' : s).replace(/[٠-٩]/g, function(d){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫،,]/g, '.').replace(/[^0-9.]/g, ''); }
+  IDS.forEach(function(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    let mode = 'k';   // k = ألف (الافتراضي)، 1 = ليرة
+    el.type = 'text'; el.setAttribute('inputmode', 'decimal'); el.setAttribute('autocomplete', 'off');
+    const basePh = el.getAttribute('placeholder') || '';
+    const tools = document.createElement('div');
+    tools.className = 'money-tools';
+    tools.innerHTML = '<span class="mt-btn" data-m="k">ألف</span><span class="mt-btn" data-m="1">ليرة</span><b class="mt-prev"></b>';
+    const host = el.parentElement.classList.contains('qa-row') ? el.parentElement : el;
+    host.insertAdjacentElement('afterend', tools);
+    function mult(){ return mode === 'k' ? 1000 : 1; }
+    function refresh(){
+      tools.querySelectorAll('.mt-btn').forEach(function(b){ b.classList.toggle('on', b.dataset.m === mode); });
+      const raw = latin(desc.get.call(el));
+      tools.querySelector('.mt-prev').textContent = (raw !== '' && !isNaN(+raw) && +raw > 0) ? ('= ' + (+raw * mult()).toLocaleString('en-US', {maximumFractionDigits:3}) + ' ل.س') : '';
+      const m = basePh.match(/(\d{4,})/);
+      el.setAttribute('placeholder', (m && mode === 'k') ? basePh.replace(m[1], String(+m[1] / 1000)) : basePh);
+    }
+    Object.defineProperty(el, 'value', {
+      configurable: true,
+      get: function(){
+        const r = latin(desc.get.call(this));
+        if(r === '' || isNaN(+r)) return r;
+        return String(+(+r * mult()).toFixed(6));
+      },
+      set: function(v){
+        if(v === '' || v == null || isNaN(+v)){ mode = 'k'; desc.set.call(this, v == null ? '' : v); }
+        else {
+          v = +v;
+          if(v >= 1000 && v % 1000 === 0){ mode = 'k'; desc.set.call(this, String(v / 1000)); }
+          else { mode = '1'; desc.set.call(this, String(v)); }
+        }
+        refresh();
+      }
+    });
+    tools.addEventListener('click', function(e){
+      const b = e.target.closest('.mt-btn');
+      if(!b) return;
+      mode = b.dataset.m;
+      refresh();
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+    });
+    el.addEventListener('input', function(){ const r0 = desc.get.call(el), n0 = latin(r0); if(n0 !== r0) desc.set.call(el, n0); refresh(); });
+    refresh();
+  });
+  // خانات الوزن: نفس الشي (أرقام لاتينية حتى لو انعبّت بالكود)
+  ['weightInput', 'qaSaleWeight'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.type = 'text'; el.setAttribute('inputmode', 'decimal'); el.setAttribute('autocomplete', 'off');
+    Object.defineProperty(el, 'value', {
+      configurable: true,
+      get: function(){ return latin(desc.get.call(this)); },
+      set: function(v){ desc.set.call(this, v == null ? '' : String(v)); }
+    });
+    el.addEventListener('input', function(){ const r0 = desc.get.call(el), n0 = latin(r0); if(n0 !== r0) desc.set.call(el, n0); });
+  });
+})();
+</script>
+
+
+<script>
+/* ===== kbAdapt: تكيّف الصفحة مع الكيبورد على أي جهاز (بدون أرقام ثابتة) =====
+   1) إذا الجهاز بيبلّغ عن الكيبورد (تصغير الصفحة أو visualViewport): بنستعمل القياس الحقيقي.
+   2) إذا ما بلّغ: بنثبّت النافذة بأعلى الشاشة بنسبة من ارتفاع الشاشة الحقيقية، فالكيبورد بيطلع تحتها. */
+(function(){
+  const vv = window.visualViewport;
+  const TEXT = /^(text|number|tel|search|email|password|url)$/i;
+  let baseH = window.innerHeight, baseW = window.innerWidth;
+  let dockedOverlay = null, padEl = null, padOrig = '', tmr = null;
+  let plugKb = 0;   // ارتفاع الكيبورد الحقيقي من أندرويد نفسو (بالـAPK فقط)
+  try{
+    const CapK = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard;
+    if(CapK && CapK.addListener){
+      const onShow = function(info){ plugKb = (info && info.keyboardHeight) || 0; if(isTextField(document.activeElement)) apply(); };
+      CapK.addListener('keyboardWillShow', onShow);
+      CapK.addListener('keyboardDidShow', onShow);
+      CapK.addListener('keyboardWillHide', function(){ plugKb = 0; });
+      CapK.addListener('keyboardDidHide', function(){ plugKb = 0; });
+    }
+  }catch(e){}
+
+  function isTextField(el){ return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && TEXT.test(el.type || 'text'))) && !el.readOnly && !el.disabled; }
+  function landscape(){ return window.innerWidth > window.innerHeight; }
+  // الارتفاع الظاهر فوق الكيبورد: قياس حقيقي إذا توفّر، وإلا نسبة من الشاشة
+  function visibleHeight(){
+    if(window.innerHeight < baseH - 100) return {h: window.innerHeight, ofs: 0, real: true};          // النظام صغّر الصفحة
+    if(vv && vv.height < baseH - 100)    return {h: vv.height, ofs: vv.offsetTop || 0, real: true};   // الكيبورد صغّر المنظور
+    if(plugKb > 0) return {h: Math.max(160, baseH - plugKb), ofs: 0, real: true};                      // أندرويد بلّغ بارتفاع الكيبورد الحقيقي
+    return {h: Math.max(160, baseH * (landscape() ? 0.45 : 0.55)), ofs: 0, real: false};             // احتياط أخير: نسبة من الشاشة
+  }
+  function scrollParent(el){
+    for(let n = el.parentElement; n && n !== document.body; n = n.parentElement){
+      const o = getComputedStyle(n).overflowY;
+      if((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 4) return n;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+  function revealIn(container, el, topPx, extraTop){
+    const c = container.getBoundingClientRect ? container.getBoundingClientRect() : {top:0};
+    const top = (container === document.scrollingElement || container === document.documentElement) ? 0 : c.top;
+    const r = el.getBoundingClientRect();
+    container.scrollTop += (r.top - top) - topPx - (extraTop || 0);
+  }
+
+  function undock(){
+    if(dockedOverlay){ dockedOverlay.classList.remove('kb-dock'); dockedOverlay.style.removeProperty('--kvis'); dockedOverlay.style.removeProperty('--kofs'); dockedOverlay = null; }
+    if(padEl){ padEl.style.paddingBottom = padOrig; padEl = null; }
+  }
+  function apply(){
+    const el = document.activeElement;
+    if(!isTextField(el)){ undock(); return; }
+    const vis = visibleHeight();
+    const ov = el.closest('.modal-overlay.show');
+    if(ov){
+      if(dockedOverlay && dockedOverlay !== ov) undock();
+      dockedOverlay = ov;
+      ov.style.setProperty('--kvis', Math.round(vis.h) + 'px');
+      ov.style.setProperty('--kofs', Math.round(vis.ofs) + 'px');
+      ov.classList.add('kb-dock');
+      const sheet = ov.querySelector('.modal-sheet');
+      const bar = sheet.querySelector('.modal-topbar');
+      clearTimeout(tmr);
+      tmr = setTimeout(function(){ revealIn(sheet, el, (sheet.clientHeight - el.offsetHeight) * 0.35, bar ? bar.offsetHeight : 0); }, 120);
+    } else {
+      // خانة بالصفحة نفسها (مثل البيع السريع): مساحة مؤقتة تحت المحتوى ونطلع الخانة فوق الكيبورد
+      const sp = scrollParent(el);
+      if(padEl !== sp){ if(padEl) padEl.style.paddingBottom = padOrig; padEl = sp; padOrig = sp.style.paddingBottom; }
+      sp.style.paddingBottom = Math.round(Math.max(0, baseH - vis.h) + 24) + 'px';
+      clearTimeout(tmr);
+      tmr = setTimeout(function(){ revealIn(sp, el, vis.h * 0.30, 0); }, 120);
+    }
+  }
+  document.addEventListener('focusin', function(e){
+    if(isTextField(e.target)){ apply(); setTimeout(apply, 350); } else { undock(); }
+  });
+  document.addEventListener('focusout', function(){ setTimeout(function(){ if(!isTextField(document.activeElement)) undock(); }, 120); });
+  if(vv) vv.addEventListener('resize', function(){ if(isTextField(document.activeElement)) apply(); });
+  window.addEventListener('resize', function(){
+    if(!isTextField(document.activeElement)){ baseH = window.innerHeight; baseW = window.innerWidth; } else apply();
+  });
+  window.addEventListener('orientationchange', function(){ setTimeout(function(){ undock(); baseH = window.innerHeight; baseW = window.innerWidth; }, 400); });
+
+  // قفل الخلفية لما تكون نافذة مفتوحة: لمس خارجها ما بيحرّك شي
+  function dismissKb(){ const a = document.activeElement; if(a && a !== document.body && isTextField(a)) a.blur(); }
+  const mo = new MutationObserver(function(muts){
+    // إذا انسكّرت نافذة وفيها خانة كتابة شغالة: الكيبورد بيسكّر معها فوراً
+    (muts || []).forEach(function(m){
+      const t = m.target;
+      if(t && t.classList && t.classList.contains('modal-overlay') && !t.classList.contains('show') && t.contains(document.activeElement)) dismissKb();
+    });
+    const open = !!document.querySelector('.modal-overlay.show');
+    document.body.classList.toggle('modal-open', open);
+    if(!open) undock();
+  });
+  document.querySelectorAll('.modal-overlay').forEach(function(o){ mo.observe(o, {attributes:true, attributeFilter:['class']}); });
+  // نوافذ بتنعمل وقت التشغيل (متل أسئلة تغيّر اليوم): منراقبها هي كمان، ومنسكّر الكيبورد إذا انشالت وفيها خانة شغالة
+  let lastField = null;
+  document.addEventListener('focusin', function(e){ lastField = e.target; });
+  new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if(n.nodeType === 1 && n.classList && n.classList.contains('modal-overlay')) mo.observe(n, {attributes:true, attributeFilter:['class']});
+      });
+      m.removedNodes.forEach(function(n){
+        if(n.nodeType === 1 && lastField && n.contains && n.contains(lastField)){
+          try{ const t = document.createElement('input'); t.style.cssText = 'position:fixed; opacity:0; width:1px; height:1px; top:0; left:0;'; t.readOnly = true; document.body.appendChild(t); t.focus(); t.blur(); t.remove(); }catch(e){}
+          lastField = null;
+        }
+      });
+    });
+  }).observe(document.body, {childList:true});
+  document.addEventListener('touchmove', function(e){
+    if(document.body.classList.contains('modal-open') && !e.target.closest('.modal-sheet')) e.preventDefault();
+  }, {passive:false});
+})();
+</script>
+<script>
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('sw', e); }); });
+}
+</script>
 </body>
 </html>
