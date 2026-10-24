@@ -16,18 +16,19 @@ jobs:
         run: |
           mkdir -p www
           echo '<!DOCTYPE html><html><body>loading</body></html>' > www/index.html
-          cat > package.json <<'EOF'
+          cat > package.json <<'EOT'
           {
             "name": "smart-store",
             "version": "1.0.0",
             "dependencies": {
-              "@capacitor/core": "^7.0.0",
-              "@capacitor/android": "^7.0.0",
-              "@capacitor/cli": "^7.0.0"
+              "@capacitor/core": "^7.4.0",
+              "@capacitor/android": "^7.4.0",
+              "@capacitor/cli": "^7.4.0",
+              "@capacitor/keyboard": "^7.0.0"
             }
           }
-          EOF
-          cat > capacitor.config.json <<'EOF'
+          EOT
+          cat > capacitor.config.json <<'EOT'
           {
             "appId": "com.aamsmartstore.app",
             "appName": "المحاسب الذكي",
@@ -35,14 +36,41 @@ jobs:
             "server": {
               "url": "https://aliblack98.github.io/smart-store/",
               "androidScheme": "https"
+            },
+            "android": {
+              "adjustMarginsForEdgeToEdge": "auto"
             }
           }
-          EOF
+          EOT
       - run: npm install
       - run: npx cap add android
       - run: npx cap sync android
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Set version
+        run: |
+          cd android/app
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" build.gradle
+      - name: Build and sign
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          cd android && chmod +x gradlew
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            echo "Signing with the fixed key"
+            ./gradlew assembleRelease
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+            UNSIGNED=$(ls app/build/outputs/apk/release/*.apk | head -1)
+            $BT/zipalign -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+            $BT/apksigner sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --out "$GITHUB_WORKSPACE/smart-store.apk" "$RUNNER_TEMP/aligned.apk"
+            $BT/apksigner verify --print-certs "$GITHUB_WORKSPACE/smart-store.apk" | head -3
+          else
+            echo "No signing secrets found, building a debug APK"
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/smart-store.apk"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: app-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: smart-store.apk
