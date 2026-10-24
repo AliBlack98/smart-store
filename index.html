@@ -1117,6 +1117,8 @@
         <input type="tel" id="signPhone" dir="ltr" autocomplete="tel" placeholder="09XXXXXXXX"></div>
       <div class="form-field"><label>الإيميل *</label>
         <input type="email" id="signEmail" dir="ltr" autocomplete="email" placeholder="name@example.com"></div>
+      <div class="form-field"><label>أعد كتابة الإيميل *</label>
+        <input type="email" id="signEmail2" dir="ltr" autocomplete="off" placeholder="name@example.com"></div>
       <div class="form-field"><label>كلمة السر * (8 أحرف أو أرقام على الأقل)</label>
         <div class="pw-wrap"><input type="password" id="signPassword" autocomplete="new-password" placeholder="••••••••" oninput="authCheckMatch()"><button type="button" class="pw-eye" onclick="authTogglePw('signPassword', this)" aria-label="إظهار أو إخفاء كلمة السر">👁️</button></div></div>
       <div class="form-field"><label>أعد كتابة كلمة السر *</label>
@@ -5399,13 +5401,29 @@
     btn.disabled = false;
   };
 
+  // فحص الإيميل عند إنشاء حساب جديد فقط (تسجيل الدخول ما بيتأثر)
+  function checkSignupEmail(raw){
+    const email = String(raw || '').replace(/\s+/g, '').toLowerCase();
+    if(!email) return { err:'اكتب الإيميل' };
+    if(/^www\./.test(email)) return { err:'الإيميل مكتوب غلط: احذف www من أوله (الصح: ' + email.replace(/^www\./, '') + ')' };
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.split('@').length !== 2) return { err:'الإيميل مو صحيح، تأكد منه (مثال: name@gmail.com)' };
+    const local = email.split('@')[0], dom = email.split('@')[1];
+    if(local.startsWith('.') || local.endsWith('.') || local.indexOf('..') >= 0 || dom.indexOf('..') >= 0) return { err:'الإيميل مو صحيح، تأكد من النقاط فيه' };
+    const typos = { 'gmial.com':'gmail.com','gmai.com':'gmail.com','gamil.com':'gmail.com','gmail.con':'gmail.com','gmail.co':'gmail.com','gmil.com':'gmail.com','gmal.com':'gmail.com','gmail.cm':'gmail.com','gmaill.com':'gmail.com','gmail.comm':'gmail.com','hotmial.com':'hotmail.com','hotmal.com':'hotmail.com','hotmail.con':'hotmail.com','yaho.com':'yahoo.com','yahoo.con':'yahoo.com','yahooo.com':'yahoo.com','outlok.com':'outlook.com','outlook.con':'outlook.com' };
+    if(typos[dom]) return { err:'هل تقصد ' + local + '@' + typos[dom] + ' ؟ صحّح الإيميل وجرّب' };
+    return { email: email };
+  }
+
   window.authSignup = async function(){
-    const name = val('signName'), phone = val('signPhone').replace(/[\s\-]/g,''), email = val('signEmail');
+    const name = val('signName'), phone = val('signPhone').replace(/[\s\-]/g,'');
+    const ec = checkSignupEmail(document.getElementById('signEmail').value);
+    if(ec.err){ msg(ec.err, 'err'); return; }
+    const email = ec.email;
+    if(email !== String(document.getElementById('signEmail2').value || '').replace(/\s+/g, '').toLowerCase()){ msg('الإيميلين مو متطابقين، أعد كتابتهم', 'err'); return; }
     const pass = document.getElementById('signPassword').value;
     const shop = val('signShop'), loc = val('signLocation');
     if(!name){ msg('اكتب اسمك', 'err'); return; }
     if(!/^\+?\d{9,15}$/.test(phone)){ msg('رقم الهاتف لازم يكون أرقام بس (9 أرقام على الأقل)', 'err'); return; }
-    if(!email){ msg('اكتب الإيميل', 'err'); return; }
     if(pass.length < 8){ msg('كلمة السر قصيرة، لازم 8 أحرف أو أرقام على الأقل', 'err'); return; }
     if(pass !== document.getElementById('signPassword2').value){ msg('كلمتا السر مو متطابقتين، أعد كتابتهم', 'err'); return; }
     const btn = document.getElementById('signupBtn');
