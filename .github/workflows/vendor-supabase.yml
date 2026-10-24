@@ -1,0 +1,32 @@
+name: Add Supabase library
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download library
+        run: |
+          mkdir tmp && cd tmp
+          npm pack @supabase/supabase-js@2
+          tar -xzf supabase-supabase-js-*.tgz
+          cp package/dist/umd/supabase.js ../supabase.js
+          cd .. && rm -rf tmp
+          ls -l supabase.js
+          grep -c "createClient" supabase.js
+      - name: Save to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add supabase.js
+          git commit -m "Add supabase.js" || echo "no changes"
+          git push
